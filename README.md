@@ -1,33 +1,49 @@
-# LearnIT - Dynamic Learning Path Recommendation System
+# LearnIT - AI-Powered Adaptive Learning Platform
 
-A modern MERN stack application that delivers personalized learning experiences through intelligent recommendation algorithms, role-based access control, and comprehensive progress tracking.
+A comprehensive MERN stack application delivering personalized learning experiences through AI-powered recommendations, gamification, interactive assessments, and collaborative learning features.
 
 ## 🎯 Overview
 
-LearnIT is an adaptive learning platform designed to provide customized educational paths based on individual user progress, skill levels, and learning goals. The system leverages a sophisticated recommendation engine that analyzes user behavior and performance to suggest the most relevant learning resources.
+LearnIT is an intelligent adaptive learning platform that personalizes educational journeys based on user progress, skill levels, and learning goals. Powered by Google's Gemini AI and sophisticated recommendation algorithms, the platform offers dynamic lesson generation, skill tree visualization, interactive quizzes, community forums, and comprehensive progress tracking.
 
 ## ✨ Key Features
 
-### For Students
-- **Intelligent Recommendations**: AI-powered algorithm suggests lessons tailored to your learning journey
-- **Progress Tracking**: Real-time monitoring of skill mastery across multiple topics
-- **Interactive Dashboard**: Visualize your learning progress with intuitive metrics
-- **External Resource Integration**: Access curated content from YouTube, articles, and official documentation
-- **Personalized Learning Paths**: Dynamic course recommendations based on your goals and current skill level
+### Learning & Content
+- **AI-Powered Content Generation**: Dynamic lesson creation using Google Gemini AI
+- **Personalized Recommendations**: Intelligent algorithm suggests tailored learning paths
+- **Skill Tree Visualization**: Interactive skill progression maps with personalized paths
+- **Custom Learning Collections**: Create and organize personal learning directories
+- **Interactive Quizzes**: Lesson-specific and assessment quizzes with instant feedback
+- **Smart Notes System**: Take notes with bookmarking and organization features
+- **AI ChatBot**: Context-aware learning assistant powered by Gemini
 
-### For Administrators
-- **User Management**: Create, suspend, and manage student and admin accounts
-- **Role-Based Access Control**: Three-tier system (Super Admin, Admin, Student)
-- **Content Management**: Organize lessons, courses, and learning materials
-- **Analytics Dashboard**: Monitor platform usage and student progress
-- **Protected Super Admin**: Immutable super administrator
+### Progress & Analytics
+- **Comprehensive Progress Tracking**: Real-time monitoring across all topics
+- **Activity Heatmap**: Visual representation of learning patterns
+- **Weekly Activity Analytics**: Detailed insights into learning habits
+- **Goal Management**: Set, track, and achieve learning objectives
+- **Skill Mastery Levels**: Track proficiency across different topics
+- **Certificate Generation**: Earn certificates upon course completion
 
-### Technical Highlights
-- **Responsive Design**: Mobile-first UI built with TailwindCSS v4
-- **Real-time Notifications**: Instant feedback with React Hot Toast
-- **Secure Authentication**: JWT-based authentication with bcrypt password hashing
-- **Smooth Animations**: Enhanced UX with Framer Motion
-- **RESTful API**: Well-structured backend with Express.js
+### Gamification & Engagement
+- **XP & Leveling System**: Earn experience points and level up
+- **Daily Streak Tracking**: Build consistent learning habits
+- **Badge System**: Unlock achievements for milestones
+- **Leaderboard**: Compete with peers and track rankings
+- **Points & Rewards**: Comprehensive gamification mechanics
+
+### Community & Collaboration
+- **Discussion Forum**: Category-based community discussions
+- **Q&A Platform**: Ask questions, vote, and accept answers
+- **Comment System**: Engage with posts and share knowledge
+- **User Profiles**: View achievements and activity
+
+### Admin & Management
+- **User Management**: Create, suspend, and manage accounts
+- **Role-Based Access Control**: Super Admin, Admin, Student roles
+- **System Analytics**: Monitor platform health and usage
+- **Bulk Operations**: Efficient batch user management
+- **Content Management**: Organize courses and lessons
 
 ## 🛠️ Technology Stack
 
@@ -36,17 +52,22 @@ LearnIT is an adaptive learning platform designed to provide customized educatio
 - **Vite** - Lightning-fast build tool and dev server
 - **TailwindCSS v4** - Utility-first CSS framework
 - **React Router DOM** - Client-side routing
-- **Framer Motion** - Animation library
+- **Framer Motion** - Smooth animations and transitions
 - **Axios** - HTTP client with interceptors
 - **React Hot Toast** - Notification system
+- **Lucide React** - Beautiful icon library
 
 ### Backend
-- **Node.js** - JavaScript runtime
-- **Express.js** - Web application framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB ODM
-- **JWT** - JSON Web Tokens for authentication
-- **bcryptjs** - Password hashing
+- **Node.js & Express.js** - Server runtime and framework
+- **MongoDB & Mongoose** - Database and ODM
+- **JWT & bcryptjs** - Authentication and password hashing
+- **Google Generative AI** - Gemini AI integration
+- **CORS** - Cross-origin resource sharing
+
+### AI Integration
+- **Google Gemini 1.5 Flash** - Content generation and chat assistance
+- **Custom Recommendation Engine** - Weighted scoring algorithm
+- **Adaptive Learning Paths** - Dynamic content personalization
 
 ## 📚 User Roles & Permissions
 
@@ -99,47 +120,84 @@ const WEIGHTS = {
 };
 ```
 
-## 🔌 API Documentation
+## 🔌 API Endpoints Overview
 
-### Authentication Endpoints
+### Authentication (`/api/auth`)
+- Register, Login, Verify Token
+- Profile Management, Password Change
+- Password Reset with OTP
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/register` | Create new account | No |
-| POST | `/api/auth/login` | User login | No |
-| GET | `/api/auth/verify` | Verify JWT token | Yes |
+### Lessons (`/api/lessons`)
+- Get All Lessons, Get Lesson by ID
+- AI-Generated Personalized Lessons
+- Custom Lesson CRUD Operations
+- Learning Directory Management
 
-### Recommendation Endpoints
+### Progress (`/api/progress`)
+- Track Lesson Progress & Completion
+- Activity Heatmap & Weekly Stats
+- Personal Learning Lists
+- Collection Management
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/recommendations` | Get personalized recommendations | Yes |
-| POST | `/api/recommendations/refresh` | Regenerate recommendation path | Yes |
+### Quizzes (`/api/quiz`)
+- Assessment Quiz Generation
+- Lesson-Specific Quizzes
+- Quiz Submission & Scoring
 
-### Progress Endpoints
+### Recommendations (`/api/recommendations`)
+- Personalized Learning Paths
+- Refresh Recommendations
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/progress` | Update lesson progress | Yes |
-| GET | `/api/progress` | Get user progress summary | Yes |
-| GET | `/api/progress/detailed` | Get detailed progress with mastery | Yes |
+### Skill Trees (`/api/skill-tree`)
+- Personalized Skill Tree Generation
+- Default Skill Tree Templates
+- Skill Tree History
 
-### Lesson & Course Endpoints
+### Goals (`/api/goals`)
+- CRUD Operations for Learning Goals
+- Goal Progress Tracking
+- Goal Statistics
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/lessons` | List all lessons | Yes |
-| GET | `/api/lessons/:id` | Get specific lesson | Yes |
-| GET | `/api/courses` | List all courses | Yes |
+### Gamification (`/api/gamification`)
+- XP & Level Stats
+- Streak Management
+- Leaderboard Rankings
+- Badge System
 
-### Admin Endpoints
+### Forum (`/api/forum`)
+- Posts & Comments CRUD
+- Voting System
+- Answer Acceptance
+- Category Management
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/admin/users` | List all users | Admin |
-| POST | `/api/admin/users` | Create new user | Admin |
-| PATCH | `/api/admin/users/:id/suspend` | Suspend/activate user | Admin |
-| DELETE | `/api/admin/users/:id` | Delete user | Admin |
+### Chat (`/api/chat`)
+- AI ChatBot Interactions
+- Session Management
+- Chat History
+
+### Certificates (`/api/certificates`)
+- Generate Certificates
+- View & Verify Certificates
+
+### Notifications (`/api/notifications`)
+- Real-time Notifications
+- Read/Unread Management
+- Notification Preferences
+
+### Notes (`/api/notes`)
+- Lesson Notes CRUD
+- Bookmark Management
+
+### Analytics (`/api/analytics`)
+- Learning Patterns Analysis
+- Performance Insights
+
+### Admin (`/api/admin`)
+- User Management (CRUD, Suspend, Bulk Actions)
+- System Stats & Health
+- Platform Analytics
+
+**See [backend/README.md](backend/README.md) for detailed endpoint documentation.**
 
 ## 📁 Project Structure
 
@@ -147,46 +205,49 @@ const WEIGHTS = {
 LearnIT/
 ├── frontend/
 │   ├── src/
-│   │   ├── assets/              # Images, icons, and static files
+│   │   ├── assets/              # Static assets and images
 │   │   ├── components/          # Reusable UI components
 │   │   │   ├── NavBar.jsx
-│   │   │   ├── Footer.jsx
-│   │   │   └── RecommendationPanel.jsx
-│   │   ├── context/             # React Context (Auth, etc.)
-│   │   │   └── AuthContext.jsx
-│   │   ├── lib/                 # Utilities and API client
+│   │   │   ├── ChatBot.jsx
+│   │   │   ├── XPBar.jsx
+│   │   │   ├── StreakCounter.jsx
+│   │   │   ├── BadgeDisplay.jsx
+│   │   │   └── ...
+│   │   ├── context/             # React Context providers
+│   │   │   ├── AuthContext.jsx
+│   │   │   └── GamificationContext.jsx
+│   │   ├── lib/                 # API client and utilities
 │   │   │   └── api.js
-│   │   ├── pages/               # Page-level components
-│   │   │   ├── AuthForm.jsx
+│   │   ├── pages/               # Route components
 │   │   │   ├── Dashboard.jsx
-│   │   │   ├── AdminDashboard.jsx
-│   │   │   ├── AdminUsersPage.jsx
 │   │   │   ├── LessonView.jsx
-│   │   │   └── ProgressPage.jsx
+│   │   │   ├── SkillTreePage.jsx
+│   │   │   ├── ForumPage.jsx
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   └── ...
 │   │   ├── App.jsx              # Main app with routing
-│   │   ├── main.jsx             # React entry point
-│   │   └── index.css            # Global styles
-│   ├── package.json
-│   └── vite.config.js
+│   │   └── main.jsx             # React entry point
+│   └── package.json
 │
 └── backend/
     ├── controllers/             # Request handlers
     │   ├── authController.js
-    │   ├── adminController.js
-    │   ├── recommendationController.js
-    │   ├── progressController.js
-    │   └── lessonController.js
+    │   ├── lessonController.js
+    │   ├── chatController.js
+    │   ├── gamificationController.js
+    │   └── ...
     ├── models/                  # MongoDB schemas
     │   ├── User.js
     │   ├── Lesson.js
-    │   ├── Course.js
     │   ├── Progress.js
-    │   └── RecommendationLog.js
+    │   ├── SkillTree.js
+    │   └── ...
     ├── routes/                  # API routes
-    ├── middleware/              # Authentication & validation
+    ├── middleware/              # Auth & validation
     │   └── auth.js
-    ├── lib/                     # Core utilities
+    ├── lib/                     # Core services
     │   ├── db.js
+    │   ├── geminiService.js
     │   └── recommendationEngine.js
     ├── server.js                # Express server
     └── package.json
@@ -197,19 +258,75 @@ LearnIT/
 - **JWT Authentication** - Secure token-based authentication
 - **Password Hashing** - bcrypt with salt rounds
 - **Protected Routes** - Middleware-based authorization
-- **Role-Based Access Control** - Three-tier permission system
+- **Role-Based Access Control** - Super Admin, Admin, Student roles
 - **Super Admin Protection** - Immutable first user with full privileges
 - **Account Suspension** - Prevent login without data deletion
 - **CORS Configuration** - Controlled cross-origin requests
+- **Input Validation** - Sanitization and validation of user inputs
 
 ## 🎨 UI/UX Features
 
 - **Responsive Design** - Mobile, tablet, and desktop optimized
-- **Dark Mode Support** - Comfortable viewing in any lighting
+- **Modern UI** - TailwindCSS v4 with custom design system
 - **Smooth Animations** - Framer Motion powered transitions
 - **Loading States** - Clear feedback during async operations
 - **Error Handling** - User-friendly error messages
 - **Toast Notifications** - Real-time feedback for user actions
+- **Interactive Components** - Engaging user interface elements
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 16+ and npm
+- MongoDB instance
+- Google Gemini API key
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/mjpriyanshu/LearnIT.git
+cd LearnIT
+```
+
+2. **Backend Setup**
+```bash
+cd backend
+npm install
+```
+
+Create `.env` file:
+```env
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+PORT=5000
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+Start backend:
+```bash
+npm run dev  # Development
+npm start    # Production
+```
+
+3. **Frontend Setup**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Access the application at `http://localhost:5173`
+
+### First User Setup
+- First registered user automatically becomes Super Admin
+- Super Admin can create additional admins and students
+
+## 📖 Documentation
+
+- **[Backend API Documentation](backend/README.md)** - Complete API reference
+- **[Frontend Guide](frontend/README.md)** - Component and feature overview
+- **[Dynamic Learning Guide](DYNAMIC_LEARNING.md)** - AI features documentation
 
 ## 🤝 Contributing
 
