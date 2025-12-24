@@ -18,7 +18,6 @@ export const authMiddleware = async (req, res, next) => {
       return res.json({success: false, message: "User not found"});
     }
     
-    console.log('✅ Authenticated user:', user.email, '| Role:', user.role);
     req.user = user;
     next();
   } catch (error) {

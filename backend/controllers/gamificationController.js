@@ -64,7 +64,8 @@ export const updateStreak = async (req, res) => {
 
         let userStats = await UserStats.findOne({ userId });
         if (!userStats) {
-            userStats = await UserStats.create({ userId });
+            userStats = new UserStats({ userId });
+            await userStats.save();
         }
 
         const today = new Date();
@@ -149,7 +150,8 @@ export const awardXP = async (userId, amount, reason) => {
     try {
         let userStats = await UserStats.findOne({ userId });
         if (!userStats) {
-            userStats = await UserStats.create({ userId });
+            userStats = new UserStats({ userId });
+            await userStats.save();
         }
 
         userStats.xp += amount;
@@ -199,7 +201,8 @@ export const recordLessonComplete = async (req, res) => {
 
         let userStats = await UserStats.findOne({ userId });
         if (!userStats) {
-            userStats = await UserStats.create({ userId });
+            userStats = new UserStats({ userId });
+            await userStats.save();
         }
 
         userStats.totalLessonsCompleted += 1;

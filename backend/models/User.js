@@ -9,7 +9,9 @@ const userSchema = new mongoose.Schema({
   isActive: {type: Boolean, default: true},
   interests: [{type: String}],
   skill_levels: {type: Map, of: Number, default: {}},
-  learning_goals: [{type: String}]
+  learning_goals: [{type: String}],
+  resetPasswordOTP: {type: String},
+  resetPasswordOTPExpires: {type: Date}
 }, {timestamps: true});
 
 const User = mongoose.model("User", userSchema);

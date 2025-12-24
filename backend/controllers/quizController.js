@@ -135,7 +135,8 @@ export const submitAssessment = async (req, res) => {
         // Update user stats
         let userStats = await UserStats.findOne({ userId });
         if (!userStats) {
-            userStats = await UserStats.create({ userId });
+            userStats = new UserStats({ userId });
+            await userStats.save();
         }
 
         userStats.assessmentResults.push({
@@ -255,7 +256,10 @@ export const submitLessonQuiz = async (req, res) => {
         const passed = scorePercent >= (quiz.passingScore || 60);
 
         let userStats = await UserStats.findOne({ userId });
-        if (!userStats) userStats = await UserStats.create({ userId });
+        if (!userStats) {
+            userStats = new UserStats({ userId });
+            await userStats.save();
+        }
 
         userStats.totalQuizzesTaken += 1;
         const xpEarned = Math.round(quiz.xpReward * (scorePercent / 100));

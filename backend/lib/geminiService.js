@@ -8,6 +8,38 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 /**
+ * Validate URL format (no HTTP requests)
+ * @param {string} url - URL to validate
+ * @returns {boolean} true if valid format, false otherwise
+ */
+const validateURL = (url) => {
+  try {
+    // Check basic URL format
+    const urlPattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+    if (!urlPattern.test(url)) return false;
+    
+    // For YouTube videos, validate the video ID format
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
+      const match = url.match(youtubeRegex);
+      return match !== null; // Valid if video ID format is correct
+    }
+    
+    // Accept well-known educational domains
+    const trustedDomains = [
+      'youtube.com', 'youtu.be', 'freecodecamp.org', 'developer.mozilla.org',
+      'w3schools.com', 'python.org', 'realpython.com', 'dev.to', 
+      'digitalocean.com', 'codecademy.com', 'css-tricks.com', 'github.com'
+    ];
+    
+    return trustedDomains.some(domain => url.includes(domain));
+  } catch (error) {
+    console.log('⚠️ [URL Validation] Invalid URL format:', url);
+    return false;
+  }
+};
+
+/**
  * Generate personalized learning resources using Gemini AI
  * @param {string} userId - User ID to personalize for
  * @param {number} count - Number of lessons to generate (default: 5)
@@ -51,44 +83,55 @@ export const generatePersonalizedLessons = async (userId, count = 5) => {
     console.log('🎯 [GEMINI] Normalized interests:', normalizedInterests);
 
     // Build prompt for Gemini
-    const prompt = `You are an educational content curator. Generate ${count} high-quality learning resources for a student with the following profile:
+    const prompt = `You are an educational content curator. Generate EXACTLY ${count} high-quality YouTube video tutorials.
 
-PRIMARY User Interests (MUST include these topics): ${normalizedInterests.join(', ')}
-Learning Goals: ${user.learning_goals.join(', ')}
-Suggested Areas for Improvement: ${skillGaps.length > 0 ? skillGaps.join(', ') : 'None identified'}
+STRICT REQUIREMENT - ONLY GENERATE VIDEOS ABOUT THESE TOPICS:
+${normalizedInterests.map((interest, i) => `${i + 1}. ${interest.toUpperCase()}`).join('\n')}
 
-CRITICAL REQUIREMENTS:
-1. Generate resources that DIRECTLY match the user's PRIMARY interests
-2. If a user is interested in "python", "nextjs", etc., include those specific topics
-3. Distribute lessons across ALL user interests, not just one technology
-4. Provide REAL, EXISTING links to high-quality tutorials, videos, or articles
+User's Learning Goals: ${user.learning_goals.join(', ')}
 
-Recommended sources:
-- YouTube: freeCodeCamp, Traversy Media, Web Dev Simplified, Programming with Mosh, Corey Schafer, Tech With Tim
-- Tutorial sites: Real Python, CSS-Tricks, MDN, Dev.to, DigitalOcean Tutorials
-- Course platforms: freeCodeCamp, Codecademy free courses, W3Schools
+CRITICAL RULES:
+1. Generate EXACTLY ${count} YouTube videos
+2. EVERY video MUST be directly related to ONE of the topics listed above
+3. Do NOT generate videos about topics NOT in the user's interests
+4. Distribute videos across DIFFERENT interests from the list (not all on one topic)
+5. Use ONLY these trusted YouTube channels:
+   - freeCodeCamp.org
+   - Traversy Media
+   - Programming with Mosh
+   - Web Dev Simplified
+   - The Net Ninja
+   - Corey Schafer
+   - Tech With Tim
+   - Fireship
+   - Kevin Powell (for CSS)
 
-Return ONLY a valid JSON array with this exact structure:
+EXAMPLE - If interests are ["python", "react", "css"]:
+✅ CORRECT: Python tutorial, React hooks, CSS flexbox
+❌ WRONG: Java tutorial, Angular, PHP (not in interests)
+
+Return ONLY valid JSON array with EXACTLY ${count} items:
 [
   {
-    "title": "Exact title of the resource",
-    "description": "Brief description (1-2 sentences)",
-    "contentURL": "Full valid URL (must be real and accessible)",
-    "sourceType": "video|article|tutorial|course",
-    "tags": ["tag1", "tag2", "tag3"],
-    "difficulty": "beginner|intermediate|advanced",
-    "estimatedTimeMin": number,
-    "provider": "Channel/Site name",
-    "prerequisites": ["prereq1", "prereq2"]
+    "title": "Full video title matching user interests",
+    "description": "What they'll learn about [INTEREST FROM LIST]",
+    "contentURL": "https://www.youtube.com/watch?v=VIDEO_ID",
+    "sourceType": "video",
+    "tags": ["${normalizedInterests[0] || 'programming'}", "tag2", "tag3"],
+    "difficulty": "beginner",
+    "estimatedTimeMin": 30,
+    "provider": "Channel name from approved list",
+    "prerequisites": []
   }
 ]
 
-IMPORTANT: 
-- Provide REAL URLs only - verify these are actual resources
-- Match tags to the user's PRIMARY interests
-- Cover diverse topics from their interest list
-- No placeholder or example URLs
-- Prioritize beginner-friendly content for new topics`;
+MANDATORY:
+- All tags must relate to interests: ${normalizedInterests.join(', ')}
+- sourceType must be "video"
+- Only YouTube URLs from approved channels
+- Match user interests EXACTLY - no random topics`;
+
+    console.log('📝 [GEMINI] Prompt:', prompt.substring(0, 300) + '...');
 
     // Generate content
     console.log('🚀 [GEMINI] Calling Gemini API...');
@@ -106,6 +149,11 @@ IMPORTANT:
     try {
       generatedLessons = JSON.parse(text);
       console.log('✅ [GEMINI] Successfully parsed JSON, lessons count:', generatedLessons.length);
+      console.log('📊 [GEMINI] Requested:', count, '| Received:', generatedLessons.length);
+      
+      if (generatedLessons.length < count) {
+        console.log('⚠️ [GEMINI] Warning: Received fewer lessons than requested!');
+      }
     } catch (parseError) {
       console.error('❌ [GEMINI] Failed to parse JSON response');
       console.error('❌ [GEMINI] Response text:', text);
@@ -114,8 +162,35 @@ IMPORTANT:
     }
 
     // Validate and format lessons
-    const formattedLessons = generatedLessons.map(lesson => ({
-      ...lesson,
+    console.log('🔍 [GEMINI] Validating URLs...');
+    
+    // Validate URLs (format check only, no HTTP requests)
+    const validLessons = generatedLessons.filter(lesson => {
+      const isValid = validateURL(lesson.contentURL);
+      if (!isValid) {
+        console.log('❌ [GEMINI] Removed invalid URL format:', lesson.contentURL);
+        return false;
+      }
+      return true;
+    });
+    
+    console.log(`✅ [GEMINI] URL Validation: ${validLessons.length}/${generatedLessons.length} URLs have valid format`);
+    
+    // If we lost too many lessons, warn but continue
+    if (validLessons.length < count * 0.5) {
+      console.log('⚠️ [GEMINI] Warning: More than 50% of URLs were invalid. Consider regenerating.');
+    }
+    
+    const formattedLessons = validLessons.map(lesson => ({
+      title: lesson.title,
+      description: lesson.description,
+      contentURL: lesson.contentURL,
+      sourceType: lesson.sourceType,
+      tags: lesson.tags,
+      difficulty: lesson.difficulty,
+      estimatedTimeMin: lesson.estimatedTimeMin,
+      provider: lesson.provider,
+      prerequisites: lesson.prerequisites,
       createdBy: 'gemini',
       geminiGenerated: true,
       personalizedFor: [userId],
@@ -209,8 +284,8 @@ export const refreshPersonalizedLessons = async (userId) => {
       createdAt: { $lt: sevenDaysAgo }
     });
 
-    // Generate new personalized lessons
-    const newLessons = await generatePersonalizedLessons(userId, 10);
+    // Generate new personalized lessons (8 to have some buffer)
+    const newLessons = await generatePersonalizedLessons(userId, 8);
 
     // Save to database
     const savedLessons = await Lesson.insertMany(newLessons);

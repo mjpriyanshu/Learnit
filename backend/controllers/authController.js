@@ -2,6 +2,21 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+// Check if this is the first user (for frontend to show appropriate UI)
+export const checkFirstUser = async (req, res) => {
+  try {
+    const userCount = await User.countDocuments();
+    res.json({
+      success: true,
+      data: { isFirstUser: userCount === 0 },
+      message: userCount === 0 ? "No users found - first registration will be super admin" : "Users exist"
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+    console.log(error.message);
+  }
+};
+
 export const register = async (req, res) => {
   try {
     const { name, email, password, interests, learning_goals, role } = req.body;
@@ -21,10 +36,20 @@ export const register = async (req, res) => {
     
     const passwordHash = await bcrypt.hash(password, 10);
     
-    // Check if this is the first user - make them super admin
+    // Check if this is the first user - ALWAYS make them super admin
     const userCount = await User.countDocuments();
-    const userRole = userCount === 0 ? 'admin' : (role || 'student');
-    const isSuperAdmin = userCount === 0;
+    const isFirstUser = userCount === 0;
+    
+    // Only first user can be admin through registration
+    // Other admins must be created by super admin through admin panel
+    const userRole = isFirstUser ? 'admin' : 'student';
+    const isSuperAdmin = isFirstUser;
+    
+    if (isFirstUser) {
+      console.log('🎯 First user registration - creating super admin:', email);
+    } else if (role === 'admin') {
+      console.log('⚠️ Blocked attempt to create admin account through registration:', email);
+    }
     
     const user = new User({
       name,
@@ -42,7 +67,7 @@ export const register = async (req, res) => {
       userId: user._id, 
       role: user.role, 
       isSuperAdmin: user.isSuperAdmin 
-    }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    }, process.env.JWT_SECRET, { expiresIn: '1d' });
     
     res.json({
       success: true,
@@ -93,7 +118,9 @@ export const login = async (req, res) => {
       userId: user._id, 
       role: user.role, 
       isSuperAdmin: user.isSuperAdmin 
-    }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    
+    console.log('✅ Login successful:', user.email, '| Role:', user.role);
     
     res.json({
       success: true,
@@ -227,7 +254,7 @@ export const changePassword = async (req, res) => {
   }
 };
 
-// Forgot password - generates a password reset token
+// Forgot password - generates a 6-digit OTP
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -242,25 +269,29 @@ export const forgotPassword = async (req, res) => {
       // Don't reveal whether user exists for security
       return res.json({ 
         success: true, 
-        message: "If an account with that email exists, a password reset link has been sent" 
+        message: "If an account with that email exists, a verification code has been sent" 
       });
     }
     
-    // Generate reset token (valid for 1 hour)
-    const resetToken = jwt.sign(
-      { userId: user._id, purpose: 'password-reset' },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // In a real application, you would send this token via email
-    // For now, we'll return it in the response
-    console.log('🔑 Password reset token for', email, ':', resetToken);
+    // Store OTP and expiry (valid for 10 minutes)
+    user.resetPasswordOTP = otp;
+    user.resetPasswordOTPExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    await user.save();
+    
+    // In a real application, you would send this OTP via email
+    // For development, we'll log it to console
+    console.log('🔑 Password reset OTP for', email, ':', otp);
+    console.log('⏰ OTP expires at:', user.resetPasswordOTPExpires);
+    
+    // TODO: Send OTP via email service (e.g., SendGrid, AWS SES, Nodemailer)
+    // await sendEmail(email, 'Password Reset OTP', `Your verification code is: ${otp}`);
     
     res.json({
       success: true,
-      data: { resetToken }, // In production, don't send this - send via email instead
-      message: "Password reset instructions sent to your email"
+      message: "A verification code has been sent to your email. It will expire in 10 minutes."
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
@@ -268,40 +299,80 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// Reset password using the token
+// Verify OTP code
+export const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.json({ success: false, message: "Email and OTP are required" });
+    }
+    
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.json({ success: false, message: "Invalid credentials" });
+    }
+    
+    // Check if OTP exists and matches
+    if (!user.resetPasswordOTP || user.resetPasswordOTP !== otp) {
+      return res.json({ success: false, message: "Invalid verification code" });
+    }
+    
+    // Check if OTP has expired
+    if (user.resetPasswordOTPExpires < new Date()) {
+      return res.json({ success: false, message: "Verification code has expired. Please request a new one." });
+    }
+    
+    res.json({
+      success: true,
+      message: "Verification code confirmed. You can now reset your password."
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+    console.log(error.message);
+  }
+};
+
+// Reset password using the OTP
 export const resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { email, otp, newPassword } = req.body;
     
-    if (!token || !newPassword) {
-      return res.json({ success: false, message: "Token and new password are required" });
+    if (!email || !otp || !newPassword) {
+      return res.json({ success: false, message: "Email, OTP, and new password are required" });
     }
     
     if (newPassword.length < 6) {
       return res.json({ success: false, message: "Password must be at least 6 characters" });
     }
     
-    // Verify the reset token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      if (decoded.purpose !== 'password-reset') {
-        return res.json({ success: false, message: "Invalid reset token" });
-      }
-    } catch (err) {
-      return res.json({ success: false, message: "Invalid or expired reset token" });
-    }
-    
-    const user = await User.findById(decoded.userId);
+    const user = await User.findOne({ email });
     
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "Invalid credentials" });
+    }
+    
+    // Verify OTP
+    if (!user.resetPasswordOTP || user.resetPasswordOTP !== otp) {
+      return res.json({ success: false, message: "Invalid verification code" });
+    }
+    
+    // Check if OTP has expired
+    if (user.resetPasswordOTPExpires < new Date()) {
+      return res.json({ success: false, message: "Verification code has expired. Please request a new one." });
     }
     
     // Hash and save new password
     user.passwordHash = await bcrypt.hash(newPassword, 10);
+    
+    // Clear OTP fields
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpires = undefined;
+    
     await user.save();
+    
+    console.log('✅ Password reset successful for:', email);
     
     res.json({
       success: true,

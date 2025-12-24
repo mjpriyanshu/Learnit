@@ -279,12 +279,22 @@ export const getMyLearningDirectory = async (req, res) => {
     const userId = req.user._id;
 
     // PUBLIC SECTION - General content visible to everyone
-    const publicLessons = await Lesson.find({ 
+    // 1. Regular public lessons
+    const regularPublicLessons = await Lesson.find({ 
       visibility: 'public'
     });
 
+    // 2. AI-generated lessons by OTHER users (to expand content base)
+    const otherUsersAILessons = await Lesson.find({
+      geminiGenerated: true,
+      personalizedFor: { $ne: userId } // Not personalized for current user
+    });
+
+    // Combine public content
+    const publicLessons = [...regularPublicLessons, ...otherUsersAILessons];
+
     // PRIVATE SECTION - User's personalized content
-    // 1. AI-generated lessons for this user
+    // 1. AI-generated lessons for THIS user (they generated it)
     const personalizedLessons = await Lesson.find({
       geminiGenerated: true,
       personalizedFor: userId

@@ -74,7 +74,12 @@ const PublicRoute = ({ children }) => {
     );
   }
 
-  return !user ? children : <Navigate to='/dashboard' replace />;
+  // Redirect logged-in users to their appropriate dashboard
+  if (user) {
+    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />;
+  }
+
+  return children;
 };
 
 const AppContent = () => {
@@ -92,8 +97,14 @@ const AppContent = () => {
       {showNavbar && <NavBar />}
       <main className='flex-1'>
         <Routes>
-          {/* Public Landing Page - accessible to everyone */}
-          <Route path='/' element={<LandingPage />} />
+          {/* Public Landing Page - shows to non-logged-in users, logged-in users redirected to dashboard */}
+          <Route path='/' element={
+            user ? (
+              <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />
+            ) : (
+              <LandingPage />
+            )
+          } />
 
           <Route path='/setup' element={
             <PublicRoute>

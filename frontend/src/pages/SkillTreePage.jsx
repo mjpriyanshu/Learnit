@@ -22,7 +22,7 @@ const defaultSkillTree = {
         {
             id: 'cs-basics',
             title: 'CS Fundamentals',
-            x: 50, y: 10,
+            x: 50, y: 2,
             status: 'completed',
             category: 'foundation',
             icon: Cpu,
@@ -35,7 +35,7 @@ const defaultSkillTree = {
         {
             id: 'python-basics',
             title: 'Python Basics',
-            x: 30, y: 25,
+            x: 20, y: 20,
             status: 'unlocked',
             category: 'python',
             icon: Terminal,
@@ -46,7 +46,7 @@ const defaultSkillTree = {
         {
             id: 'python-advanced',
             title: 'Advanced Python',
-            x: 20, y: 40,
+            x: 8, y: 42,
             status: 'locked',
             category: 'python',
             icon: Code,
@@ -57,7 +57,7 @@ const defaultSkillTree = {
         {
             id: 'data-science',
             title: 'Data Science',
-            x: 10, y: 60,
+            x: 5, y: 66,
             status: 'locked',
             category: 'python',
             icon: Database,
@@ -68,7 +68,7 @@ const defaultSkillTree = {
         {
             id: 'ai-ml',
             title: 'AI & ML',
-            x: 10, y: 80,
+            x: 5, y: 90,
             status: 'locked',
             category: 'python',
             icon: Zap,
@@ -81,7 +81,7 @@ const defaultSkillTree = {
         {
             id: 'dsa-basics',
             title: 'DSA: Arrays & Strings',
-            x: 40, y: 50,
+            x: 50, y: 50,
             status: 'locked',
             category: 'dsa',
             icon: Layers,
@@ -92,7 +92,7 @@ const defaultSkillTree = {
         {
             id: 'dsa-trees',
             title: 'Trees & Graphs',
-            x: 35, y: 70,
+            x: 40, y: 74,
             status: 'locked',
             category: 'dsa',
             icon: Layers, // Fallback icon
@@ -103,7 +103,7 @@ const defaultSkillTree = {
         {
             id: 'dsa-dp',
             title: 'Dynamic Programming',
-            x: 45, y: 85,
+            x: 50, y: 95,
             status: 'locked',
             category: 'dsa',
             icon: Search,
@@ -116,7 +116,7 @@ const defaultSkillTree = {
         {
             id: 'js-basics',
             title: 'JavaScript',
-            x: 70, y: 25,
+            x: 80, y: 20,
             status: 'unlocked',
             category: 'web',
             icon: Code,
@@ -127,7 +127,7 @@ const defaultSkillTree = {
         {
             id: 'frontend-react',
             title: 'React & UI',
-            x: 60, y: 45,
+            x: 65, y: 44,
             status: 'locked',
             category: 'web',
             icon: Globe,
@@ -138,7 +138,7 @@ const defaultSkillTree = {
         {
             id: 'backend-node',
             title: 'Node & APIs',
-            x: 80, y: 45,
+            x: 92, y: 44,
             status: 'locked',
             category: 'web',
             icon: Server,
@@ -149,7 +149,7 @@ const defaultSkillTree = {
         {
             id: 'state-management',
             title: 'State Architecture',
-            x: 55, y: 65,
+            x: 60, y: 68,
             status: 'locked',
             category: 'web',
             icon: Layers,
@@ -160,7 +160,7 @@ const defaultSkillTree = {
         {
             id: 'database-design',
             title: 'SQL & NoSQL',
-            x: 85, y: 65,
+            x: 93, y: 68,
             status: 'locked',
             category: 'web',
             icon: Database,
@@ -171,7 +171,7 @@ const defaultSkillTree = {
         {
             id: 'fullstack',
             title: 'Full Stack Master',
-            x: 70, y: 85,
+            x: 77, y: 92,
             status: 'locked',
             category: 'web',
             icon: Zap,

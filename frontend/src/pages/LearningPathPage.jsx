@@ -56,9 +56,24 @@ const LearningPathPage = () => {
   const fetchLessons = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/lessons');
+      const response = await api.get('/lessons/my/directory');
       if (response.data.success) {
-        setLessons(response.data.data);
+        // Combine public and private lessons with proper labeling
+        const publicLessons = response.data.data.public.map(lesson => ({
+          ...lesson,
+          _visibility: 'public' // Add internal flag for filtering
+        }));
+        
+        const privateLessons = [
+          ...response.data.data.private.personalized,
+          ...response.data.data.private.custom
+        ].map(lesson => ({
+          ...lesson,
+          _visibility: 'private' // Add internal flag for filtering
+        }));
+        
+        const allLessons = [...publicLessons, ...privateLessons];
+        setLessons(allLessons);
       }
     } catch (error) {
       console.error('Failed to fetch lessons:', error);
@@ -123,9 +138,9 @@ const LearningPathPage = () => {
   const applyFilters = () => {
     let filtered = [...lessons];
 
-    // Visibility filter
-    if (visibilityFilter === 'public') filtered = filtered.filter(l => l.visibility === 'public');
-    else if (visibilityFilter === 'private') filtered = filtered.filter(l => l.visibility === 'private');
+    // Visibility filter - use internal _visibility flag
+    if (visibilityFilter === 'public') filtered = filtered.filter(l => l._visibility === 'public');
+    else if (visibilityFilter === 'private') filtered = filtered.filter(l => l._visibility === 'private');
 
     // Tab filter
     if (activeTab === 'videos') filtered = filtered.filter(l => l.sourceType === 'video');
