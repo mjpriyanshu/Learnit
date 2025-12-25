@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
+import { GamificationContext } from '../context/GamificationContext';
 import logo from '../assets/logo.png';
 import XPBar from './XPBar';
 import StreakCounter from './StreakCounter';
@@ -11,6 +12,8 @@ import api from '../lib/api';
 const NavBar = () => {
   // Context hooks first
   const { user, logout } = useContext(AuthContext);
+  const gamification = useContext(GamificationContext);
+  const stats = gamification?.stats || {};
 
   // Navigation hooks
   const navigate = useNavigate();
@@ -251,14 +254,6 @@ const NavBar = () => {
                   )}
                 </Link>
               </>
-            )}
-
-            {/* Gamification Stats */}
-            {!user.role && (
-              <div className="flex items-center gap-3 ml-2 max-lg:hidden">
-                <StreakCounter showLabel={false} />
-                <XPBar />
-              </div>
             )}
 
             {/* User Menu */}

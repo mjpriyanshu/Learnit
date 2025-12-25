@@ -107,8 +107,25 @@ export const sendMessage = async (req, res) => {
             aiResponse = result.response.text();
         } catch (aiError) {
             console.error("AI Error:", aiError);
-            // Fallback responses
-            aiResponse = getFallbackResponse(message);
+            console.error("Error details:", aiError.message);
+            
+            // Check if it's a network error
+            if (aiError.message?.includes('fetch failed') || aiError.code === 'ENOTFOUND' || aiError.code === 'ECONNREFUSED') {
+                aiResponse = "⚠️ I'm having trouble connecting to my AI service right now. This could be due to:\n\n" +
+                    "• Network connectivity issues\n" +
+                    "• Firewall or proxy blocking the connection\n" +
+                    "• The AI service being temporarily unavailable\n\n" +
+                    "Please try again in a moment. If the issue persists, check your network connection or contact support.\n\n" +
+                    "In the meantime, feel free to:\n" +
+                    "• Explore the Learning Path for tutorials\n" +
+                    "• Check the Discussion Forum for community help\n" +
+                    "• Review your Progress and continue learning 📚";
+            } else if (aiError.message?.includes('API key')) {
+                aiResponse = "⚠️ AI service configuration issue. Please contact your administrator.";
+            } else {
+                // Fallback responses for other errors
+                aiResponse = getFallbackResponse(message);
+            }
         }
 
         // Add AI response to history
