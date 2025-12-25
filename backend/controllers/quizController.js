@@ -154,6 +154,15 @@ export const submitAssessment = async (req, res) => {
 
         // Badges
         const newBadges = [];
+        
+        // Assessment completion badge
+        const assessmentBadge = BADGE_DEFINITIONS.assessment_complete;
+        if (!userStats.badges.find(b => b.id === assessmentBadge.id)) {
+            userStats.badges.push(assessmentBadge);
+            newBadges.push(assessmentBadge);
+        }
+        
+        // First quiz badge
         if (userStats.totalQuizzesTaken === 1) {
             const badge = BADGE_DEFINITIONS.first_quiz;
             if (!userStats.badges.find(b => b.id === badge.id)) {
@@ -161,6 +170,17 @@ export const submitAssessment = async (req, res) => {
                 newBadges.push(badge);
             }
         }
+        
+        // Quiz master badge (10 quizzes)
+        if (userStats.totalQuizzesTaken >= 10) {
+            const badge = BADGE_DEFINITIONS.quiz_master;
+            if (!userStats.badges.find(b => b.id === badge.id)) {
+                userStats.badges.push(badge);
+                newBadges.push(badge);
+            }
+        }
+        
+        // Perfect score badge
         if (scorePercent === 100) {
             const perfectBadge = BADGE_DEFINITIONS.perfect_score;
             if (!userStats.badges.find(b => b.id === perfectBadge.id)) {
@@ -266,6 +286,36 @@ export const submitLessonQuiz = async (req, res) => {
         userStats.xp += xpEarned;
         userStats.level = userStats.calculateLevel();
 
+        // Check for quiz badges
+        const newBadges = [];
+        
+        // First quiz badge
+        if (userStats.totalQuizzesTaken === 1) {
+            const badge = BADGE_DEFINITIONS.first_quiz;
+            if (!userStats.badges.find(b => b.id === badge.id)) {
+                userStats.badges.push(badge);
+                newBadges.push(badge);
+            }
+        }
+        
+        // Quiz master badge (10 quizzes)
+        if (userStats.totalQuizzesTaken >= 10) {
+            const badge = BADGE_DEFINITIONS.quiz_master;
+            if (!userStats.badges.find(b => b.id === badge.id)) {
+                userStats.badges.push(badge);
+                newBadges.push(badge);
+            }
+        }
+        
+        // Perfect score badge
+        if (scorePercent === 100) {
+            const perfectBadge = BADGE_DEFINITIONS.perfect_score;
+            if (!userStats.badges.find(b => b.id === perfectBadge.id)) {
+                userStats.badges.push(perfectBadge);
+                newBadges.push(perfectBadge);
+            }
+        }
+
         await userStats.save();
 
         res.json({
@@ -275,7 +325,7 @@ export const submitLessonQuiz = async (req, res) => {
                 passed,
                 correctCount,
                 xpEarned,
-                newBadges: []
+                newBadges
             }
         });
     } catch (error) {

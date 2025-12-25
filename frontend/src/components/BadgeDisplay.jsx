@@ -40,7 +40,7 @@ const BadgeDisplay = ({ badges = [], compact = false }) => {
 
     if (compact) {
         // Show only earned badges in a compact view
-        const earnedBadges = allBadges.filter(b => b.earned);
+        const earnedBadges = allBadges.filter(b => b.earned === true);
         return (
             <div className="flex flex-wrap gap-2">
                 {earnedBadges.length === 0 ? (
