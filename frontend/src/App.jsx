@@ -105,6 +105,9 @@ const AppContent = () => {
               <LandingPage />
             )
           } />
+          
+          {/* Dedicated Landing Page Route - accessible to all users */}
+          <Route path='/landing' element={<LandingPage />} />
 
           <Route path='/setup' element={
             <PublicRoute>

@@ -67,7 +67,7 @@ const NavBar = () => {
       <div className='max-w-7xl mx-auto px-6 py-4'>
         <div className='flex items-center justify-between'>
           {/* Logo/Brand */}
-          <Link to='/' className='flex items-center gap-3 group'>
+          <Link to='/landing' className='flex items-center gap-3 group'>
             <div className='relative'>
               <img src={logo} alt='LearnIT Logo' className='w-10 h-10 rounded-lg object-contain transition-transform group-hover:scale-110' />
               <div
