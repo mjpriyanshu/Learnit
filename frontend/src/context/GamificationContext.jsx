@@ -78,7 +78,7 @@ export const GamificationProvider = ({ children }) => {
         toast.custom((t) => (
             <div
                 className={`${t.visible ? 'animate-enter' : 'animate-leave'
-                    } max-w-md w-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg rounded-lg pointer-events-auto flex items-center p-4`}
+                    } max-w-md w-full bg-linear-to-r from-purple-600 to-indigo-600 shadow-lg rounded-lg pointer-events-auto flex items-center p-4`}
             >
                 <div className="text-4xl mr-4">{badge.icon}</div>
                 <div>

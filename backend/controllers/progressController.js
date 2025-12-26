@@ -40,32 +40,30 @@ export const createOrUpdateProgress = async (req, res) => {
     }
     
     if (progress) {
+      const previousTotal = progress.timeSpentMin || 0;
+      
       progress.status = finalStatus;
       progress.score = score !== undefined ? score : progress.score;
       
-      // IMPORTANT: Accumulate time instead of replacing it
-      // The frontend sends total time, so we should just update it directly
+      // Update total time spent
       if (timeSpentMin !== undefined) {
         progress.timeSpentMin = timeSpentMin;
       }
       
       // Update daily time log
-      if (timeSpentMin !== undefined && timeSpentMin > 0) {
+      if (timeSpentMin !== undefined && timeSpentMin > previousTotal) {
         const today = new Date().toISOString().split('T')[0];
+        const timeAddedThisUpdate = timeSpentMin - previousTotal;
         const todayLog = progress.dailyTimeLog.find(log => log.date === today);
         
         if (todayLog) {
-          // Update today's time (frontend sends total, so calculate the difference)
-          const previousTotal = progress.timeSpentMin || 0;
-          const timeAddedToday = Math.max(0, timeSpentMin - previousTotal);
-          todayLog.minutesSpent += timeAddedToday;
+          // Add the new time to today's log
+          todayLog.minutesSpent += timeAddedThisUpdate;
         } else {
-          // Create new daily log entry
-          const previousTotal = progress.timeSpentMin || 0;
-          const timeAddedToday = Math.max(0, timeSpentMin - previousTotal);
+          // Create new daily log entry for today
           progress.dailyTimeLog.push({
             date: today,
-            minutesSpent: timeAddedToday
+            minutesSpent: timeAddedThisUpdate
           });
         }
       }

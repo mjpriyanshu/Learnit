@@ -44,6 +44,20 @@ const ProgressPage = () => {
     fetchWeeklyActivity();
   }, []);
 
+  // Refresh data when user navigates to this page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchProgressList();
+        fetchActivityHeatmap();
+        fetchWeeklyActivity();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const fetchActivityHeatmap = async () => {
     try {
       const response = await api.get('/progress/activity-heatmap?days=30');
