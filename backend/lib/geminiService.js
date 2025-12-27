@@ -1,305 +1,329 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import User from "../models/User.js";
 import Lesson from "../models/Lesson.js";
-import { calculateMastery } from "./recommendationEngine.js";
+import { fetchYouTubeVideo } from "./youtubeService.js";
 
-// Initialize Gemini API
+// Gemini setup
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-/**
- * Validate URL format (no HTTP requests)
- * @param {string} url - URL to validate
- * @returns {boolean} true if valid format, false otherwise
- */
-const validateURL = (url) => {
-  try {
-    // Check basic URL format
-    const urlPattern = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
-    if (!urlPattern.test(url)) return false;
-    
-    // For YouTube videos, validate the video ID format
-    if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/;
-      const match = url.match(youtubeRegex);
-      return match !== null; // Valid if video ID format is correct
-    }
-    
-    // Accept well-known educational domains
-    const trustedDomains = [
-      'youtube.com', 'youtu.be', 'freecodecamp.org', 'developer.mozilla.org',
-      'w3schools.com', 'python.org', 'realpython.com', 'dev.to', 
-      'digitalocean.com', 'codecademy.com', 'css-tricks.com', 'github.com'
-    ];
-    
-    return trustedDomains.some(domain => url.includes(domain));
-  } catch (error) {
-    console.log('⚠️ [URL Validation] Invalid URL format:', url);
-    return false;
-  }
-};
-
-/**
- * Generate personalized learning resources using Gemini AI
- * @param {string} userId - User ID to personalize for
- * @param {number} count - Number of lessons to generate (default: 5)
- * @returns {Array} Array of generated lesson objects
- */
 export const generatePersonalizedLessons = async (userId, count = 5) => {
   try {
-    console.log('🤖 [GEMINI] Starting AI lesson generation');
-    console.log('🤖 [GEMINI] User ID:', userId);
-    console.log('🤖 [GEMINI] Requested count:', count);
-    console.log('🤖 [GEMINI] API Key configured:', !!process.env.GEMINI_API_KEY);
-    
-    // Fetch user data
     const user = await User.findById(userId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new Error("User not found");
 
-    console.log('👤 [GEMINI] User interests:', user.interests);
-    console.log('🎯 [GEMINI] User goals:', user.learning_goals);
-
-    // Get all unique tags from existing lessons
-    const allLessons = await Lesson.find();
-    const allTags = [...new Set(allLessons.flatMap(l => l.tags))];
-
-    // Calculate user's mastery
-    const mastery = await calculateMastery(userId, allTags);
-
-    // Identify skill gaps (tags with low mastery)
-    const skillGaps = Object.entries(mastery)
-      .filter(([_, score]) => score < 0.7)
-      .sort(([_, a], [__, b]) => a - b)
-      .slice(0, 5)
-      .map(([tag, _]) => tag);
-
-    console.log('📊 [GEMINI] Skill gaps identified:', skillGaps);
-
-    // Normalize and parse interests (split comma-separated values)
-    const normalizedInterests = user.interests
-      .flatMap(interest => interest.split(',').map(i => i.trim().toLowerCase()))
+    const interests = user.interests
+      .flatMap(i => i.split(",").map(v => v.trim().toLowerCase()))
       .filter(Boolean);
-    
-    console.log('🎯 [GEMINI] Normalized interests:', normalizedInterests);
 
-    // Build prompt for Gemini
-    const prompt = `You are an educational content curator. Generate EXACTLY ${count} high-quality YouTube video tutorials.
+    const prompt = `
+You are an educational content curator.
 
-STRICT REQUIREMENT - ONLY GENERATE VIDEOS ABOUT THESE TOPICS:
-${normalizedInterests.map((interest, i) => `${i + 1}. ${interest.toUpperCase()}`).join('\n')}
+Generate EXACTLY ${count} learning video suggestions.
 
-User's Learning Goals: ${user.learning_goals.join(', ')}
+ONLY USE THESE TOPICS:
+${interests.map((i, idx) => `${idx + 1}. ${i}`).join("\n")}
 
-CRITICAL RULES:
-1. Generate EXACTLY ${count} YouTube videos
-2. EVERY video MUST be directly related to ONE of the topics listed above
-3. Do NOT generate videos about topics NOT in the user's interests
-4. Distribute videos across DIFFERENT interests from the list (not all on one topic)
-5. Use ONLY these trusted YouTube channels:
-   - freeCodeCamp.org
-   - Traversy Media
-   - Programming with Mosh
-   - Web Dev Simplified
-   - The Net Ninja
-   - Corey Schafer
-   - Tech With Tim
-   - Fireship
-   - Kevin Powell (for CSS)
+RULES:
+- DO NOT generate YouTube URLs
+- Generate SEARCH INTENT ONLY
+- Use real, popular topics
+- Beginner friendly
 
-EXAMPLE - If interests are ["python", "react", "css"]:
-✅ CORRECT: Python tutorial, React hooks, CSS flexbox
-❌ WRONG: Java tutorial, Angular, PHP (not in interests)
+Return ONLY JSON:
 
-Return ONLY valid JSON array with EXACTLY ${count} items:
 [
   {
-    "title": "Full video title matching user interests",
-    "description": "What they'll learn about [INTEREST FROM LIST]",
-    "contentURL": "https://www.youtube.com/watch?v=VIDEO_ID",
+    "title": "Video title",
+    "description": "What the user will learn",
+    "searchQuery": "React hooks tutorial Traversy Media",
     "sourceType": "video",
-    "tags": ["${normalizedInterests[0] || 'programming'}", "tag2", "tag3"],
+    "tags": ["react"],
     "difficulty": "beginner",
     "estimatedTimeMin": 30,
-    "provider": "Channel name from approved list",
+    "provider": "Traversy Media",
     "prerequisites": []
   }
 ]
-
-MANDATORY:
-- All tags must relate to interests: ${normalizedInterests.join(', ')}
-- sourceType must be "video"
-- Only YouTube URLs from approved channels
-- Match user interests EXACTLY - no random topics`;
-
-    console.log('📝 [GEMINI] Prompt:', prompt.substring(0, 300) + '...');
-
-    // Generate content
-    console.log('🚀 [GEMINI] Calling Gemini API...');
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
-    
-    console.log('📥 [GEMINI] Received response (first 500 chars):', text.substring(0, 500));
-
-    // Clean up the response (remove markdown code blocks if present)
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    // Parse JSON response
-    let generatedLessons;
-    try {
-      generatedLessons = JSON.parse(text);
-      console.log('✅ [GEMINI] Successfully parsed JSON, lessons count:', generatedLessons.length);
-      console.log('📊 [GEMINI] Requested:', count, '| Received:', generatedLessons.length);
-      
-      if (generatedLessons.length < count) {
-        console.log('⚠️ [GEMINI] Warning: Received fewer lessons than requested!');
-      }
-    } catch (parseError) {
-      console.error('❌ [GEMINI] Failed to parse JSON response');
-      console.error('❌ [GEMINI] Response text:', text);
-      console.error('❌ [GEMINI] Parse error:', parseError.message);
-      throw new Error('Invalid JSON response from Gemini');
-    }
-
-    // Validate and format lessons
-    console.log('🔍 [GEMINI] Validating URLs...');
-    
-    // Validate URLs (format check only, no HTTP requests)
-    const validLessons = generatedLessons.filter(lesson => {
-      const isValid = validateURL(lesson.contentURL);
-      if (!isValid) {
-        console.log('❌ [GEMINI] Removed invalid URL format:', lesson.contentURL);
-        return false;
-      }
-      return true;
-    });
-    
-    console.log(`✅ [GEMINI] URL Validation: ${validLessons.length}/${generatedLessons.length} URLs have valid format`);
-    
-    // If we lost too many lessons, warn but continue
-    if (validLessons.length < count * 0.5) {
-      console.log('⚠️ [GEMINI] Warning: More than 50% of URLs were invalid. Consider regenerating.');
-    }
-    
-    const formattedLessons = validLessons.map(lesson => ({
-      title: lesson.title,
-      description: lesson.description,
-      contentURL: lesson.contentURL,
-      sourceType: lesson.sourceType,
-      tags: lesson.tags,
-      difficulty: lesson.difficulty,
-      estimatedTimeMin: lesson.estimatedTimeMin,
-      provider: lesson.provider,
-      prerequisites: lesson.prerequisites,
-      createdBy: 'gemini',
-      geminiGenerated: true,
-      personalizedFor: [userId],
-      visibility: 'private',
-      isExternal: true,
-      rating: 4.5, // Default rating for AI-generated content
-      visits: 0
-    }));
-
-    console.log('🎓 [GEMINI] Formatted lessons:', formattedLessons.length);
-    console.log('🎓 [GEMINI] Sample lesson:', JSON.stringify(formattedLessons[0], null, 2));
-
-    return formattedLessons;
-
-  } catch (error) {
-    console.error('❌ [GEMINI] Error generating personalized lessons:', error.message);
-    console.error('❌ [GEMINI] Full error:', error);
-    throw error;
-  }
-};
-
-/**
- * Generate lessons for a specific topic/skill
- * @param {string} topic - Topic to generate lessons for
- * @param {string} difficulty - Difficulty level
- * @param {number} count - Number of lessons
- * @returns {Array} Array of generated lesson objects
- */
-export const generateTopicLessons = async (topic, difficulty = 'beginner', count = 3) => {
-  try {
-    const prompt = `Generate ${count} high-quality learning resources for the topic: "${topic}" at ${difficulty} level.
-
-Provide REAL, EXISTING links to:
-- YouTube tutorials from reputable channels
-- Popular tutorial sites and documentation
-- Free online courses
-
-Return ONLY a valid JSON array with this structure:
-[
-  {
-    "title": "Resource title",
-    "description": "Brief description",
-    "contentURL": "Full valid URL",
-    "sourceType": "video|article|tutorial|course",
-    "tags": ["${topic}", "related-tag1", "related-tag2"],
-    "difficulty": "${difficulty}",
-    "estimatedTimeMin": number,
-    "provider": "Channel/Site name",
-    "prerequisites": []
-  }
-]
-
-Ensure all URLs are real and accessible.`;
+`;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
-
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let text = result.response.text();
+    text = text.replace(/```json|```/g, "").trim();
 
     const generatedLessons = JSON.parse(text);
 
-    return generatedLessons.map(lesson => ({
-      ...lesson,
-      createdBy: 'gemini',
-      geminiGenerated: true,
-      visibility: 'public',
-      isExternal: true,
-      rating: 4.5,
-      visits: 0
-    }));
+    const finalLessons = [];
+
+    for (const lesson of generatedLessons) {
+      const video = await fetchYouTubeVideo(
+        `${lesson.searchQuery} ${lesson.provider}`
+      );
+
+      if (!video) continue;
+
+      finalLessons.push({
+        title: lesson.title,
+        description: lesson.description,
+        contentURL: video.watchUrl,
+        embedURL: video.embedUrl,
+        sourceType: "video",
+        tags: lesson.tags,
+        difficulty: lesson.difficulty,
+        estimatedTimeMin: lesson.estimatedTimeMin,
+        provider: lesson.provider,
+        prerequisites: lesson.prerequisites,
+        createdBy: "gemini",
+        geminiGenerated: true,
+        personalizedFor: [userId],
+        visibility: "private",
+        isExternal: true,
+        rating: 4.5,
+        visits: 0
+      });
+    }
+
+    return finalLessons.slice(0, count);
 
   } catch (error) {
-    console.error('Error generating topic lessons:', error);
+    console.error("❌ Gemini lesson generation failed:", error.message);
     throw error;
   }
 };
 
-/**
- * Refresh user's personalized lesson pool
- * @param {string} userId - User ID
- * @returns {Array} Saved lessons
- */
 export const refreshPersonalizedLessons = async (userId) => {
+  await Lesson.deleteMany({
+    geminiGenerated: true,
+    personalizedFor: userId
+  });
+
+  const lessons = await generatePersonalizedLessons(userId, 5);
+  return Lesson.insertMany(lessons);
+};
+
+export const generateQuizQuestions = async (lessonTitle, lessonDescription = "") => {
   try {
-    // Delete old Gemini-generated lessons for this user (older than 7 days)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    await Lesson.deleteMany({
-      geminiGenerated: true,
-      personalizedFor: userId,
-      createdAt: { $lt: sevenDaysAgo }
-    });
+    const prompt = `
+You are an expert educator creating quiz questions.
 
-    // Generate new personalized lessons (8 to have some buffer)
-    const newLessons = await generatePersonalizedLessons(userId, 8);
+Generate EXACTLY 5 multiple-choice questions based on this lesson:
+Title: "${lessonTitle}"
+Description: "${lessonDescription}"
 
-    // Save to database
-    const savedLessons = await Lesson.insertMany(newLessons);
+RULES:
+- Create questions that test understanding of the lesson topic
+- Each question should have 4 options
+- Mark the correct answer index (0-3)
+- Provide a brief explanation for the correct answer
+- Mix difficulty levels (easy, medium, hard)
+- Questions should be clear and educational
+- Award 10 points per question
 
-    return savedLessons;
+Return ONLY valid JSON (no markdown, no code blocks):
+
+[
+  {
+    "question": "Clear, specific question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctAnswer": 0,
+    "explanation": "Brief explanation why this is correct",
+    "difficulty": "easy",
+    "points": 10
+  }
+]
+`;
+
+    const result = await model.generateContent(prompt);
+    let text = result.response.text();
+    text = text.replace(/```json|```/g, "").trim();
+
+    const questions = JSON.parse(text);
+
+    // Validate and ensure we have exactly 5 questions
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new Error("Invalid quiz questions generated");
+    }
+
+    // Return first 5 questions (in case Gemini generates more)
+    return questions.slice(0, 5);
 
   } catch (error) {
-    console.error('Error refreshing personalized lessons:', error);
-    throw error;
+    console.error("❌ Gemini quiz generation failed:", error.message);
+    // Return fallback questions if Gemini fails
+    return [
+      {
+        question: "Did you understand the main concepts covered in this lesson?",
+        options: ["Yes, completely", "Mostly yes", "Somewhat", "Not really"],
+        correctAnswer: 0,
+        explanation: "Great! Understanding the main concepts is the first step to mastery.",
+        difficulty: "easy",
+        points: 10
+      },
+      {
+        question: "Which aspect of this lesson did you find most valuable?",
+        options: ["Core concepts", "Practical examples", "Implementation details", "Best practices"],
+        correctAnswer: 0,
+        explanation: "All aspects are important, but core concepts form the foundation.",
+        difficulty: "easy",
+        points: 10
+      },
+      {
+        question: "How confident do you feel applying what you learned?",
+        options: ["Very confident", "Somewhat confident", "Need more practice", "Not confident"],
+        correctAnswer: 0,
+        explanation: "Confidence comes with practice and application.",
+        difficulty: "medium",
+        points: 10
+      },
+      {
+        question: "What would help reinforce your learning from this lesson?",
+        options: ["Practice exercises", "More examples", "Deeper explanation", "Related topics"],
+        correctAnswer: 0,
+        explanation: "Practice exercises are excellent for reinforcing learning.",
+        difficulty: "medium",
+        points: 10
+      },
+      {
+        question: "Would you recommend this lesson to others learning this topic?",
+        options: ["Definitely yes", "Probably yes", "Maybe", "Probably not"],
+        correctAnswer: 0,
+        explanation: "Sharing knowledge helps both the learner and the community.",
+        difficulty: "easy",
+        points: 10
+      }
+    ];
   }
 };
 
-export default {
-  generatePersonalizedLessons,
-  generateTopicLessons,
-  refreshPersonalizedLessons
+export const generateAssessmentQuestions = async (topic) => {
+  try {
+    const prompt = `
+You are an expert educator creating comprehensive skill assessment questions.
+
+Generate EXACTLY 15 multiple-choice questions about "${topic}".
+
+RULES:
+- Create questions that thoroughly test understanding of ${topic}
+- Cover different aspects and complexity levels
+- Questions should range from basic concepts to advanced applications
+- Each question should have 4 options
+- Mark the correct answer index (0-3)
+- Provide a clear, educational explanation for each correct answer
+- Mix difficulty levels: 5 easy, 7 medium, 3 hard
+- Questions should be practical and test real understanding
+- Award 10 points per question
+
+Return ONLY valid JSON (no markdown, no code blocks):
+
+[
+  {
+    "question": "Clear, specific question text?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctAnswer": 0,
+    "explanation": "Brief explanation why this is correct",
+    "difficulty": "easy",
+    "points": 10
+  }
+]
+`;
+
+    const result = await model.generateContent(prompt);
+    let text = result.response.text();
+    text = text.replace(/```json|```/g, "").trim();
+
+    const questions = JSON.parse(text);
+
+    // Validate and ensure we have questions
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new Error("Invalid assessment questions generated");
+    }
+
+    // Return first 15 questions (in case Gemini generates more)
+    return questions.slice(0, 15);
+
+  } catch (error) {
+    console.error("❌ Gemini assessment generation failed:", error.message);
+    // Return fallback questions if Gemini fails
+    return Array(15).fill(null).map((_, i) => ({
+      question: `Question ${i + 1}: What is your current understanding of ${topic}?`,
+      options: ["Excellent understanding", "Good understanding", "Basic understanding", "Need to learn more"],
+      correctAnswer: 0,
+      explanation: `Understanding ${topic} comes with practice and continuous learning.`,
+      difficulty: i < 5 ? "easy" : i < 12 ? "medium" : "hard",
+      points: 10
+    }));
+  }
+};
+
+export const generateTopicLessons = async (topic, difficulty = "beginner", count = 3) => {
+  try {
+    const prompt = `
+You are an educational content curator.
+
+Generate EXACTLY ${count} learning video suggestions about "${topic}".
+
+RULES:
+- DO NOT generate YouTube URLs
+- Generate SEARCH INTENT ONLY
+- Use real, popular content creators
+- Difficulty level: ${difficulty}
+
+Return ONLY JSON:
+
+[
+  {
+    "title": "Video title about ${topic}",
+    "description": "What the user will learn",
+    "searchQuery": "${topic} tutorial beginner",
+    "sourceType": "video",
+    "tags": ["${topic.toLowerCase()}"],
+    "difficulty": "${difficulty}",
+    "estimatedTimeMin": 30,
+    "provider": "Popular Creator Name",
+    "prerequisites": []
+  }
+]
+`;
+
+    const result = await model.generateContent(prompt);
+    let text = result.response.text();
+    text = text.replace(/```json|```/g, "").trim();
+
+    const generatedLessons = JSON.parse(text);
+
+    const finalLessons = [];
+
+    for (const lesson of generatedLessons) {
+      const video = await fetchYouTubeVideo(
+        `${lesson.searchQuery} ${lesson.provider}`
+      );
+
+      if (!video) continue;
+
+      finalLessons.push({
+        title: lesson.title,
+        description: lesson.description,
+        contentURL: video.watchUrl,
+        embedURL: video.embedUrl,
+        sourceType: "video",
+        tags: lesson.tags,
+        difficulty: lesson.difficulty,
+        estimatedTimeMin: lesson.estimatedTimeMin,
+        provider: lesson.provider,
+        prerequisites: lesson.prerequisites,
+        createdBy: "gemini",
+        geminiGenerated: true,
+        visibility: "public",
+        isExternal: true,
+        rating: 4.5,
+        visits: 0
+      });
+    }
+
+    return finalLessons.slice(0, count);
+
+  } catch (error) {
+    console.error("❌ Gemini topic lesson generation failed:", error.message);
+    throw error;
+  }
 };
