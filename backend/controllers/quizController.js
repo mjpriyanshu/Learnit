@@ -2,69 +2,32 @@ import Quiz from "../models/Quiz.js";
 import UserStats from "../models/UserStats.js";
 import { BADGE_DEFINITIONS } from "./gamificationController.js";
 
-// Question Bank (Mocking an external API or DB of questions)
-const QUESTION_BANK = {
-    JavaScript: [
-        { q: "What is the output of: console.log(typeof [])?", o: ["array", "object", "undefined", "null"], a: 1, e: "Arrays are objects in JS.", d: "easy" },
-        { q: "Which method adds an element to the end of an array?", o: ["push()", "pop()", "shift()", "unshift()"], a: 0, e: "push() appends to the end.", d: "easy" },
-        { q: "What does 'async/await' help with?", o: ["Styling", "Asynchronous operations", "Loop optimization", "Memory"], a: 1, e: "Syntactic sugar for Promises.", d: "medium" },
-        { q: "What is a closure?", o: ["Browser event", "Function with parent scope access", "Loop terminator", "Error handler"], a: 1, e: "Closures access outer scope.", d: "medium" },
-        { q: "Difference between '==' and '==='?", o: ["None", "Value vs Value & Type", "String only", "Deprecated"], a: 1, e: "=== checks type too.", d: "easy" },
-        { q: "What is the 'this' keyword?", o: ["Global object", "Current execution context", "Function name", "Variable"], a: 1, e: "Depends on call site.", d: "hard" },
-        // Add more if needed
-    ],
-    React: [
-        { q: "What hook is for side effects?", o: ["useState", "useEffect", "useContext", "useReducer"], a: 1, e: "useEffect handles side effects.", d: "easy" },
-        { q: "What is the Virtual DOM?", o: ["Game engine", "Lightweight DOM copy", "Database", "CSS framework"], a: 1, e: "Efficient diffing mechanism.", d: "medium" },
-        { q: "What is JSX?", o: ["JS Library", "Syntax extension", "CSS tool", "Test runner"], a: 1, e: "HTML-like syntax in JS.", d: "easy" },
-        { q: "How do you pass data to child components?", o: ["State", "Props", "Context", "Refs"], a: 1, e: "Props flow down.", d: "easy" },
-        { q: "What hook manages local state?", o: ["useEffect", "useState", "useMemo", "useCallback"], a: 1, e: "useState manages state.", d: "easy" },
-    ],
-    Python: [
-        { q: "What is a list comprehension?", o: ["List understanding", "Concise list creation", "Sorting", "Debugging"], a: 1, e: "Concise syntax for lists.", d: "medium" },
-        { q: "What does 'self' refer to?", o: ["File", "Instance", "Parent", "Global"], a: 1, e: "Current instance.", d: "easy" },
-        { q: "Mutable data type?", o: ["Tuple", "List", "String", "Integer"], a: 1, e: "Lists can be changed.", d: "easy" },
-        { q: "Function to get length?", o: ["size()", "length()", "len()", "count()"], a: 2, e: "len() returns length.", d: "easy" },
-    ],
-    General: [
-        { q: "What does HTTP stand for?", o: ["HyperText Transfer Protocol", "High Transfer Text Protocol", "Hyper Transfer Text Protocol", "None"], a: 0, e: "Standard web protocol.", d: "easy" },
-        { q: "What is Git?", o: ["Editor", "Version Control", "Language", "OS"], a: 1, e: "Tracks code changes.", d: "easy" },
-    ]
-};
-
-// Get assessment quiz (Randomly generated based on topic)
+// Get assessment quiz (AI-generated based on topic with 15 questions)
 export const getAssessmentQuiz = async (req, res) => {
     try {
-        const topic = req.query.topic || 'General'; // Default to General
+        const topic = req.query.topic || 'General Programming'; // Default to General
 
-        // 1. Select Questions
-        // Logic: Get random 5-10 questions from BANK matching topic, or fallback to mixed
-        let pool = QUESTION_BANK[topic] || QUESTION_BANK['General'];
-        if (topic === 'Mixed') {
-            pool = Object.values(QUESTION_BANK).flat();
-        }
+        console.log(`Generating assessment quiz for topic: ${topic}`);
 
-        // Shuffle and slice
-        const shuffled = [...pool].sort(() => 0.5 - Math.random());
-        const selectedQuestions = shuffled.slice(0, 5); // Pick 5 random questions
+        // Generate 15 questions using Gemini AI
+        const { generateAssessmentQuestions } = await import('../lib/geminiService.js');
+        const questions = await generateAssessmentQuestions(topic);
 
-        // 2. Format for Client
-        // We generate a "Transient" quiz structure (we don't strictly need to save every generated quiz to DB if it's dynamic, 
-        // OR we save it as a new "Active Attempt" so we can validate answers later. For simplicity here, we'll send it and validate statelessly or save temp)
+        console.log(`Generated ${questions.length} questions for ${topic} assessment`);
 
-        // Better approach: Save a "Temp" quiz instance so we can submit against it safely
+        // Create a temporary quiz instance to validate answers later
         const tempQuiz = await Quiz.create({
             title: `${topic} Skill Assessment`,
-            description: `A generated check for your ${topic} skills.`,
+            description: `A comprehensive 15-question assessment to evaluate your ${topic} skills.`,
             type: 'assessment',
             topic: topic,
-            xpReward: 50, // Dynamic XP?
-            questions: selectedQuestions.map(q => ({
-                question: q.q,
-                options: q.o,
-                correctAnswer: q.a,
-                explanation: q.e,
-                difficulty: q.d,
+            xpReward: 150, // Higher XP for 15 questions
+            questions: questions.map(q => ({
+                question: q.question,
+                options: q.options,
+                correctAnswer: q.correctAnswer,
+                explanation: q.explanation,
+                difficulty: q.difficulty,
                 points: 10
             }))
         });
@@ -215,22 +178,40 @@ export const getLessonQuiz = async (req, res) => {
         const { lessonId } = req.params;
         let quiz = await Quiz.findOne({ lessonId, type: 'lesson' });
 
+        // Check if quiz exists but has less than 5 questions (old format)
+        if (quiz && quiz.questions.length < 5) {
+            console.log(`Found old quiz with ${quiz.questions.length} question(s). Deleting and regenerating...`);
+            await Quiz.findByIdAndDelete(quiz._id);
+            quiz = null; // Force regeneration
+        }
+
         if (!quiz) {
+            // Get lesson details to generate relevant questions
+            const Lesson = (await import('../models/Lesson.js')).default;
+            const lesson = await Lesson.findById(lessonId);
+            
+            if (!lesson) {
+                return res.status(404).json({ success: false, message: "Lesson not found" });
+            }
+
+            console.log(`Generating quiz for lesson: ${lesson.title}`);
+
+            // Generate quiz questions using Gemini API
+            const { generateQuizQuestions } = await import('../lib/geminiService.js');
+            const questions = await generateQuizQuestions(lesson.title, lesson.description);
+
+            console.log(`Generated ${questions.length} questions for quiz`);
+
+            // Create quiz with generated questions
             quiz = await Quiz.create({
-                title: "Lesson Quiz",
+                title: `${lesson.title} - Quick Quiz`,
                 type: "lesson",
                 lessonId,
-                xpReward: 30,
-                questions: [
-                    {
-                        question: "Did you understand the main concepts?",
-                        options: ["Yes", "Mostly", "Somewhat", "No"],
-                        correctAnswer: 0,
-                        difficulty: "easy",
-                        points: 10
-                    }
-                ]
+                xpReward: 50,
+                questions: questions
             });
+
+            console.log(`Quiz created successfully with ID: ${quiz._id}`);
         }
 
         const quizForClient = {
@@ -248,6 +229,7 @@ export const getLessonQuiz = async (req, res) => {
 
         res.json({ success: true, data: quizForClient });
     } catch (error) {
+        console.error("Error in getLessonQuiz:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -324,11 +306,61 @@ export const submitLessonQuiz = async (req, res) => {
                 score: scorePercent,
                 passed,
                 correctCount,
+                totalQuestions: quiz.questions.length,
                 xpEarned,
                 newBadges
             }
         });
     } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Regenerate lesson quiz with new questions
+export const regenerateLessonQuiz = async (req, res) => {
+    try {
+        const { lessonId } = req.params;
+        
+        // Get lesson details
+        const Lesson = (await import('../models/Lesson.js')).default;
+        const lesson = await Lesson.findById(lessonId);
+        
+        if (!lesson) {
+            return res.status(404).json({ success: false, message: "Lesson not found" });
+        }
+
+        // Delete existing quiz for this lesson
+        await Quiz.findOneAndDelete({ lessonId, type: 'lesson' });
+
+        // Generate new quiz questions using Gemini API
+        const { generateQuizQuestions } = await import('../lib/geminiService.js');
+        const questions = await generateQuizQuestions(lesson.title, lesson.description);
+
+        // Create new quiz with generated questions
+        const quiz = await Quiz.create({
+            title: `${lesson.title} - Quick Quiz`,
+            type: "lesson",
+            lessonId,
+            xpReward: 50,
+            questions: questions
+        });
+
+        const quizForClient = {
+            _id: quiz._id,
+            title: quiz.title,
+            xpReward: quiz.xpReward,
+            questions: quiz.questions.map(q => ({
+                _id: q._id,
+                question: q.question,
+                options: q.options,
+                difficulty: q.difficulty,
+                points: q.points
+            }))
+        };
+
+        res.json({ success: true, data: quizForClient });
+    } catch (error) {
+        console.error("Error regenerating quiz:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

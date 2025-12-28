@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GamificationContext } from '../context/GamificationContext';
 
-const LessonQuiz = ({ quiz, onComplete }) => {
+const LessonQuiz = ({ quiz, onComplete, onRegenerate }) => {
     const { addXP, showBadgeUnlock } = useContext(GamificationContext);
 
     const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -41,6 +41,13 @@ const LessonQuiz = ({ quiz, onComplete }) => {
         try {
             // Call the onComplete callback with answers
             const result = await onComplete(quiz._id, selectedAnswers);
+            console.log('Quiz result:', result);
+            
+            // Ensure totalQuestions is set (fallback to quiz length)
+            if (!result.totalQuestions) {
+                result.totalQuestions = quiz.questions.length;
+            }
+            
             setResults(result);
             setShowResults(true);
 
@@ -52,6 +59,18 @@ const LessonQuiz = ({ quiz, onComplete }) => {
             console.error('Failed to submit quiz:', error);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleRegenerate = () => {
+        // Reset quiz state
+        setCurrentQuestion(0);
+        setSelectedAnswers([]);
+        setShowResults(false);
+        setResults(null);
+        // Call regenerate callback
+        if (onRegenerate) {
+            onRegenerate();
         }
     };
 
@@ -71,7 +90,7 @@ const LessonQuiz = ({ quiz, onComplete }) => {
                 <motion.div
                     className="text-7xl mb-4"
                     initial={{ scale: 0 }}
-                    animate={{ scale: 1, rotate: [0, -10, 10, 0] }}
+                    animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 200 }}
                 >
                     {results.score >= 80 ? '🎉' : results.score >= 50 ? '👍' : '📚'}
@@ -100,7 +119,7 @@ const LessonQuiz = ({ quiz, onComplete }) => {
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
                 >
-                    {results.correctCount} of {results.totalQuestions} correct
+                    {results.correctCount || 0} of {results.totalQuestions || quiz.questions.length} correct
                 </motion.p>
 
                 {/* XP Earned */}
@@ -115,7 +134,7 @@ const LessonQuiz = ({ quiz, onComplete }) => {
                     transition={{ delay: 0.4 }}
                 >
                     <span className="text-2xl">⚡</span>
-                    <span className="text-lg font-bold text-green-400">+{results.xpEarned} XP</span>
+                    <span className="text-lg font-bold text-green-400">+{results.xpEarned || 0} XP</span>
                 </motion.div>
 
                 {/* Badges Earned */}
@@ -133,8 +152,8 @@ const LessonQuiz = ({ quiz, onComplete }) => {
                                     key={badge.id}
                                     className="flex flex-col items-center"
                                     initial={{ scale: 0 }}
-                                    animate={{ scale: 1, rotate: [0, -10, 10, 0] }}
-                                    transition={{ delay: 0.6 + index * 0.1 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.6 + index * 0.1, type: 'spring', stiffness: 200 }}
                                 >
                                     <span className="text-4xl">{badge.icon}</span>
                                     <span className="text-xs text-purple-300">{badge.name}</span>
@@ -161,6 +180,28 @@ const LessonQuiz = ({ quiz, onComplete }) => {
         );
     }
 
+    // Show loading state while submitting
+    if (isSubmitting) {
+        return (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-8 rounded-2xl text-center"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9))',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
+                }}
+            >
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <p className="text-xl text-gray-300">Submitting your answers...</p>
+                    <p className="text-sm text-gray-500">Calculating your score and XP</p>
+                </div>
+            </motion.div>
+        );
+    }
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -178,8 +219,26 @@ const LessonQuiz = ({ quiz, onComplete }) => {
                     <h3 className="text-xl font-bold text-white">{quiz.title || 'Quiz Time!'}</h3>
                     <p className="text-sm text-gray-400">Test your knowledge</p>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full" style={{ background: 'rgba(99, 102, 241, 0.2)' }}>
-                    <span className="text-sm text-purple-300">+{quiz.xpReward} XP</span>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-full" style={{ background: 'rgba(99, 102, 241, 0.2)' }}>
+                        <span className="text-sm text-purple-300">+{quiz.xpReward} XP</span>
+                    </div>
+                    {onRegenerate && (
+                        <motion.button
+                            onClick={handleRegenerate}
+                            className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                            style={{
+                                background: 'rgba(168, 85, 247, 0.2)',
+                                color: '#c084fc',
+                                border: '1px solid rgba(168, 85, 247, 0.3)'
+                            }}
+                            whileHover={{ scale: 1.05, background: 'rgba(168, 85, 247, 0.3)' }}
+                            whileTap={{ scale: 0.95 }}
+                            title="Generate new quiz questions"
+                        >
+                            🔄 New Quiz
+                        </motion.button>
+                    )}
                 </div>
             </div>
 

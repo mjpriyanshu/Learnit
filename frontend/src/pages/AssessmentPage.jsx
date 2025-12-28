@@ -3,16 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/api';
 import { GamificationContext } from '../context/GamificationContext';
+import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
     Brain, Zap, Code, Database, Globe,
     CheckCircle, AlertCircle, ArrowRight, Star,
-    Trophy, Play
+    Trophy, Play, Server, Palette, FileCode,
+    Laptop, Smartphone, Cloud
 } from 'lucide-react';
 
 const AssessmentPage = () => {
     const navigate = useNavigate();
     const { addXP } = useContext(GamificationContext);
+    const { user } = useContext(AuthContext);
 
     const [screen, setScreen] = useState('topic_selection'); // topic_selection, loading, quiz, results
     const [selectedTopic, setSelectedTopic] = useState(null);
@@ -20,20 +23,65 @@ const AssessmentPage = () => {
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [answers, setAnswers] = useState({});
     const [results, setResults] = useState(null);
+    const [userInterests, setUserInterests] = useState([]);
+    const [skippedQuestions, setSkippedQuestions] = useState(new Set());
 
-    // Topics Config
-    const TOPICS = [
-        { id: 'General', label: 'General Programming', icon: <Brain size={32} />, color: 'from-blue-500 to-indigo-500' },
-        { id: 'JavaScript', label: 'JavaScript Mastery', icon: <Code size={32} />, color: 'from-yellow-400 to-orange-500' },
-        { id: 'React', label: 'React Ecosystem', icon: <Zap size={32} />, color: 'from-cyan-400 to-blue-500' },
-        { id: 'Python', label: 'Python & Data', icon: <Database size={32} />, color: 'from-green-400 to-emerald-600' },
+    // Static Topics Config - Expanded
+    const STATIC_TOPICS = [
+        { id: 'General', label: 'General Programming', icon: <Brain size={32} />, color: 'from-blue-500 to-indigo-500', isStatic: true },
+        { id: 'JavaScript', label: 'JavaScript Mastery', icon: <Code size={32} />, color: 'from-yellow-400 to-orange-500', isStatic: true },
+        { id: 'React', label: 'React Ecosystem', icon: <Zap size={32} />, color: 'from-cyan-400 to-blue-500', isStatic: true },
+        { id: 'Python', label: 'Python & Data', icon: <Database size={32} />, color: 'from-green-400 to-emerald-600', isStatic: true },
+        { id: 'TypeScript', label: 'TypeScript Fundamentals', icon: <FileCode size={32} />, color: 'from-blue-600 to-sky-500', isStatic: true },
+        { id: 'Node.js', label: 'Node.js & Backend', icon: <Server size={32} />, color: 'from-green-500 to-teal-600', isStatic: true },
+        { id: 'HTML', label: 'HTML & Markup', icon: <Globe size={32} />, color: 'from-orange-500 to-red-500', isStatic: true },
+        { id: 'CSS', label: 'CSS & Styling', icon: <Palette size={32} />, color: 'from-pink-500 to-purple-600', isStatic: true },
+        { id: 'Mobile Development', label: 'Mobile Development', icon: <Smartphone size={32} />, color: 'from-violet-500 to-purple-700', isStatic: true },
+        { id: 'Cloud Computing', label: 'Cloud & DevOps', icon: <Cloud size={32} />, color: 'from-sky-400 to-blue-600', isStatic: true },
+        { id: 'Full Stack', label: 'Full Stack Development', icon: <Laptop size={32} />, color: 'from-indigo-600 to-violet-600', isStatic: true },
     ];
+
+    // Fetch user interests on mount
+    useEffect(() => {
+        const fetchUserInterests = async () => {
+            try {
+                const response = await api.get('/auth/me');
+                if (response.data.success && response.data.user.interests) {
+                    const interests = response.data.user.interests
+                        .flatMap(i => i.split(',').map(v => v.trim()))
+                        .filter(Boolean)
+                        .filter(interest => !STATIC_TOPICS.some(t => t.id.toLowerCase() === interest.toLowerCase()));
+                    
+                    // Create topic objects from interests
+                    const interestTopics = interests.map((interest, idx) => ({
+                        id: interest,
+                        label: `${interest} Skills`,
+                        icon: <Star size={32} />,
+                        color: [
+                            'from-rose-500 to-pink-600',
+                            'from-amber-500 to-orange-600',
+                            'from-lime-500 to-green-600',
+                            'from-teal-500 to-cyan-600',
+                            'from-fuchsia-500 to-purple-600',
+                        ][idx % 5],
+                        isStatic: false
+                    }));
+                    
+                    setUserInterests(interestTopics);
+                }
+            } catch (error) {
+                console.error('Failed to fetch user interests:', error);
+            }
+        };
+        
+        fetchUserInterests();
+    }, []);
 
     const handleStartQuiz = async (topic) => {
         setSelectedTopic(topic);
         setScreen('loading');
         try {
-            const response = await api.get(`/quiz/assessment?topic=${topic.id}`);
+            const response = await api.get(`/quiz/assessment?topic=${encodeURIComponent(topic.id)}`);
             if (response.data.success) {
                 setQuiz(response.data.data);
                 setScreen('quiz');
@@ -54,6 +102,22 @@ const AssessmentPage = () => {
     };
 
     const handleNext = () => {
+        if (currentQuestion < quiz.questions.length - 1) {
+            setCurrentQuestion(prev => prev + 1);
+        } else {
+            handleSubmit();
+        }
+    };
+
+    const handleSkip = () => {
+        // Mark question as skipped
+        setSkippedQuestions(prev => {
+            const newSet = new Set(prev);
+            newSet.add(currentQuestion);
+            return newSet;
+        });
+        
+        // Move to next question or submit if last question
         if (currentQuestion < quiz.questions.length - 1) {
             setCurrentQuestion(prev => prev + 1);
         } else {
@@ -84,46 +148,92 @@ const AssessmentPage = () => {
     };
 
     // Render Components
-    const renderTopicSelection = () => (
-        <div className='max-w-5xl mx-auto'>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className='text-center mb-12'>
-                <h1 className='text-5xl font-black text-white mb-4'>Skill Assessment</h1>
-                <p className='text-xl text-gray-400 max-w-2xl mx-auto'>
-                    Select a topic to test your knowledge with AI-generated questions.
-                </p>
-            </motion.div>
+    const renderTopicSelection = () => {
+        const allTopics = [...STATIC_TOPICS, ...userInterests];
+        
+        return (
+            <div className='max-w-6xl mx-auto'>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className='text-center mb-12'>
+                    <h1 className='text-5xl font-black text-white mb-4'>Skill Assessment</h1>
+                    <p className='text-xl text-gray-400 max-w-2xl mx-auto'>
+                        Select a topic to test your knowledge with AI-generated questions.
+                    </p>
+                </motion.div>
 
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                {TOPICS.map((topic, idx) => (
-                    <motion.div
-                        key={topic.id}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: idx * 0.1 }}
-                        onClick={() => handleStartQuiz(topic)}
-                        className='group cursor-pointer relative overflow-hidden rounded-3xl p-8 border border-white/10 hover:border-white/20 transition-all hover:scale-[1.02]'
-                        style={{ background: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(20px)' }}
-                    >
-                        <div className={`absolute inset-0 bg-gradient-to-br ${topic.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
-                        <div className='flex items-center gap-6 relative z-10'>
-                            <div className={`p-4 rounded-2xl bg-gradient-to-br ${topic.color} text-white shadow-lg`}>
-                                {topic.icon}
-                            </div>
-                            <div>
-                                <h3 className='text-2xl font-bold text-white mb-1'>{topic.label}</h3>
-                                <p className='text-gray-400 text-sm'>5 Questions • Easy to Hard</p>
-                            </div>
-                            <div className='ml-auto'>
-                                <div className='w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/20 transition-colors'>
-                                    <Play fill='white' size={20} />
+                {/* Static Topics Section */}
+                <div className='mb-8'>
+                    <h2 className='text-2xl font-bold text-white mb-4 flex items-center gap-2'>
+                        <Brain size={24} className='text-indigo-400' />
+                        Core Topics
+                    </h2>
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                        {STATIC_TOPICS.map((topic, idx) => (
+                            <motion.div
+                                key={topic.id}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: idx * 0.05 }}
+                                onClick={() => handleStartQuiz(topic)}
+                                className='group cursor-pointer relative overflow-hidden rounded-3xl p-6 border border-white/10 hover:border-white/20 transition-all hover:scale-[1.02]'
+                                style={{ background: 'rgba(30, 41, 59, 0.4)', backdropFilter: 'blur(20px)' }}
+                            >
+                                <div className={`absolute inset-0 bg-gradient-to-br ${topic.color} opacity-0 group-hover:opacity-10 transition-opacity`} />
+                                <div className='flex items-center gap-4 relative z-10'>
+                                    <div className={`p-3 rounded-2xl bg-gradient-to-br ${topic.color} text-white shadow-lg`}>
+                                        {topic.icon}
+                                    </div>
+                                    <div className='flex-1'>
+                                        <h3 className='text-lg font-bold text-white mb-1'>{topic.label}</h3>
+                                        <p className='text-gray-400 text-xs'>15 Questions • AI-Generated</p>
+                                    </div>
+                                    <div className='w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/20 transition-colors'>
+                                        <Play fill='white' size={16} />
+                                    </div>
                                 </div>
-                            </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* User Interest Topics Section */}
+                {userInterests.length > 0 && (
+                    <div>
+                        <h2 className='text-2xl font-bold text-white mb-4 flex items-center gap-2'>
+                            <Star size={24} className='text-yellow-400' />
+                            Your Interests
+                        </h2>
+                        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                            {userInterests.map((topic, idx) => (
+                                <motion.div
+                                    key={topic.id}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: (STATIC_TOPICS.length + idx) * 0.05 }}
+                                    onClick={() => handleStartQuiz(topic)}
+                                    className='group cursor-pointer relative overflow-hidden rounded-3xl p-6 border border-yellow-500/20 hover:border-yellow-500/40 transition-all hover:scale-[1.02]'
+                                    style={{ background: 'rgba(30, 41, 59, 0.6)', backdropFilter: 'blur(20px)' }}
+                                >
+                                    <div className={`absolute inset-0 bg-gradient-to-br ${topic.color} opacity-0 group-hover:opacity-15 transition-opacity`} />
+                                    <div className='flex items-center gap-4 relative z-10'>
+                                        <div className={`p-3 rounded-2xl bg-gradient-to-br ${topic.color} text-white shadow-lg`}>
+                                            {topic.icon}
+                                        </div>
+                                        <div className='flex-1'>
+                                            <h3 className='text-lg font-bold text-white mb-1'>{topic.label}</h3>
+                                            <p className='text-yellow-400 text-xs'>15 Questions • Personalized</p>
+                                        </div>
+                                        <div className='w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center group-hover:bg-yellow-500/20 transition-colors'>
+                                            <Play fill='#FBBF24' size={16} />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
                         </div>
-                    </motion.div>
-                ))}
+                    </div>
+                )}
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderQuiz = () => {
         const currentQ = quiz.questions[currentQuestion];
@@ -176,7 +286,13 @@ const AssessmentPage = () => {
                 </motion.div>
 
                 {/* Footer */}
-                <div className='flex justify-end'>
+                <div className='flex justify-between items-center gap-4'>
+                    <button
+                        onClick={handleSkip}
+                        className='px-6 py-4 rounded-xl bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white font-semibold text-lg border border-gray-600/50 hover:border-gray-500 transition-all'
+                    >
+                        Skip Question
+                    </button>
                     <button
                         onClick={handleNext}
                         disabled={answers[currentQuestion] === undefined}
@@ -205,10 +321,14 @@ const AssessmentPage = () => {
                 </h2>
                 <p className='text-gray-400 mb-8'>You scored {results.score}% on {selectedTopic?.label}</p>
 
-                <div className='grid grid-cols-3 gap-4 mb-8'>
+                <div className='grid grid-cols-4 gap-4 mb-8'>
                     <div className='bg-slate-800/50 rounded-xl p-4'>
                         <div className='text-xs text-gray-500 uppercase font-bold mb-1'>Correct</div>
                         <div className='text-2xl font-bold text-green-400'>{results.correctCount}/{results.totalQuestions}</div>
+                    </div>
+                    <div className='bg-slate-800/50 rounded-xl p-4'>
+                        <div className='text-xs text-gray-500 uppercase font-bold mb-1'>Skipped</div>
+                        <div className='text-2xl font-bold text-gray-400'>{skippedQuestions.size}</div>
                     </div>
                     <div className='bg-slate-800/50 rounded-xl p-4'>
                         <div className='text-xs text-gray-500 uppercase font-bold mb-1'>XP Earned</div>
@@ -223,20 +343,31 @@ const AssessmentPage = () => {
                 {/* Answer Review */}
                 <div className='text-left space-y-4 mb-8 max-h-[300px] overflow-y-auto custom-scrollbar p-2'>
                     <h3 className='text-sm font-bold text-gray-500 uppercase'>Review Answers</h3>
-                    {results.results.map((res, idx) => (
-                        <div key={idx} className={`p-4 rounded-xl border ${res.isCorrect ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                            <div className='flex justify-between mb-2'>
-                                <span className='text-white font-medium text-sm'>{res.question}</span>
-                                <span>{res.isCorrect ? '✅' : '❌'}</span>
-                            </div>
-                            {!res.isCorrect && (
-                                <div className='text-xs text-gray-400'>
-                                    <span className='text-green-400 font-bold'>Answer:</span> {quiz.questions[idx].options[res.correctAnswer]} <br />
-                                    <span className='italic opacity-70'>{res.explanation}</span>
+                    {results.results.map((res, idx) => {
+                        const wasSkipped = res.userAnswer === undefined || res.userAnswer === null;
+                        return (
+                            <div key={idx} className={`p-4 rounded-xl border ${
+                                wasSkipped ? 'bg-gray-500/5 border-gray-500/20' : 
+                                res.isCorrect ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'
+                            }`}>
+                                <div className='flex justify-between mb-2'>
+                                    <span className='text-white font-medium text-sm'>{res.question}</span>
+                                    <span>{wasSkipped ? '⏭️' : res.isCorrect ? '✅' : '❌'}</span>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+                                {wasSkipped ? (
+                                    <div className='text-xs text-gray-400'>
+                                        <span className='text-yellow-400 font-bold'>Skipped</span> - 
+                                        <span className='text-green-400 font-bold'> Correct answer:</span> {quiz.questions[idx].options[res.correctAnswer]}
+                                    </div>
+                                ) : !res.isCorrect && (
+                                    <div className='text-xs text-gray-400'>
+                                        <span className='text-green-400 font-bold'>Answer:</span> {quiz.questions[idx].options[res.correctAnswer]} <br />
+                                        <span className='italic opacity-70'>{res.explanation}</span>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 <div className='flex gap-4'>

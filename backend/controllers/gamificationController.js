@@ -24,11 +24,11 @@ export const getStats = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        let userStats = await UserStats.findOne({ userId });
-
-        if (!userStats) {
-            userStats = await UserStats.create({ userId });
-        }
+        let userStats = await UserStats.findOneAndUpdate(
+            { userId },
+            { $setOnInsert: { userId } },
+            { upsert: true, new: true }
+        );
 
         // Calculate XP for next level
         const xpForNextLevel = userStats.xpForNextLevel();
@@ -62,11 +62,11 @@ export const updateStreak = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        let userStats = await UserStats.findOne({ userId });
-        if (!userStats) {
-            userStats = new UserStats({ userId });
-            await userStats.save();
-        }
+        let userStats = await UserStats.findOneAndUpdate(
+            { userId },
+            { $setOnInsert: { userId } },
+            { upsert: true, new: true }
+        );
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -148,11 +148,11 @@ export const updateStreak = async (req, res) => {
 // Award XP to user
 export const awardXP = async (userId, amount, reason) => {
     try {
-        let userStats = await UserStats.findOne({ userId });
-        if (!userStats) {
-            userStats = new UserStats({ userId });
-            await userStats.save();
-        }
+        let userStats = await UserStats.findOneAndUpdate(
+            { userId },
+            { $setOnInsert: { userId } },
+            { upsert: true, new: true }
+        );
 
         userStats.xp += amount;
         const oldLevel = userStats.level;
@@ -199,11 +199,11 @@ export const recordLessonComplete = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        let userStats = await UserStats.findOne({ userId });
-        if (!userStats) {
-            userStats = new UserStats({ userId });
-            await userStats.save();
-        }
+        let userStats = await UserStats.findOneAndUpdate(
+            { userId },
+            { $setOnInsert: { userId } },
+            { upsert: true, new: true }
+        );
 
         userStats.totalLessonsCompleted += 1;
 

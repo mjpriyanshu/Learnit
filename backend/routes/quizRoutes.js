@@ -4,7 +4,8 @@ import {
     getAssessmentQuiz,
     submitAssessment,
     getLessonQuiz,
-    submitLessonQuiz
+    submitLessonQuiz,
+    regenerateLessonQuiz
 } from '../controllers/quizController.js';
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.post('/assessment/submit', protect, submitAssessment);
 // Lesson quiz routes
 router.get('/lesson/:lessonId', protect, getLessonQuiz);
 router.post('/lesson/:lessonId/submit', protect, submitLessonQuiz);
+router.post('/lesson/:lessonId/regenerate', protect, regenerateLessonQuiz);
 
 export default router;

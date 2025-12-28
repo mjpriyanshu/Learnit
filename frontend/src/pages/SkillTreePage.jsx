@@ -22,7 +22,7 @@ const defaultSkillTree = {
         {
             id: 'cs-basics',
             title: 'CS Fundamentals',
-            x: 50, y: 2,
+            x: 50, y: 5,
             status: 'completed',
             category: 'foundation',
             icon: Cpu,
@@ -35,7 +35,7 @@ const defaultSkillTree = {
         {
             id: 'python-basics',
             title: 'Python Basics',
-            x: 20, y: 20,
+            x: 15, y: 25,
             status: 'unlocked',
             category: 'python',
             icon: Terminal,
@@ -46,7 +46,7 @@ const defaultSkillTree = {
         {
             id: 'python-advanced',
             title: 'Advanced Python',
-            x: 8, y: 42,
+            x: 8, y: 47,
             status: 'locked',
             category: 'python',
             icon: Code,
@@ -57,7 +57,7 @@ const defaultSkillTree = {
         {
             id: 'data-science',
             title: 'Data Science',
-            x: 5, y: 66,
+            x: 5, y: 69,
             status: 'locked',
             category: 'python',
             icon: Database,
@@ -68,7 +68,7 @@ const defaultSkillTree = {
         {
             id: 'ai-ml',
             title: 'AI & ML',
-            x: 5, y: 90,
+            x: 5, y: 91,
             status: 'locked',
             category: 'python',
             icon: Zap,
@@ -81,7 +81,7 @@ const defaultSkillTree = {
         {
             id: 'dsa-basics',
             title: 'DSA: Arrays & Strings',
-            x: 50, y: 50,
+            x: 45, y: 52,
             status: 'locked',
             category: 'dsa',
             icon: Layers,
@@ -92,7 +92,7 @@ const defaultSkillTree = {
         {
             id: 'dsa-trees',
             title: 'Trees & Graphs',
-            x: 40, y: 74,
+            x: 38, y: 75,
             status: 'locked',
             category: 'dsa',
             icon: Layers, // Fallback icon
@@ -103,7 +103,7 @@ const defaultSkillTree = {
         {
             id: 'dsa-dp',
             title: 'Dynamic Programming',
-            x: 50, y: 95,
+            x: 48, y: 96,
             status: 'locked',
             category: 'dsa',
             icon: Search,
@@ -116,7 +116,7 @@ const defaultSkillTree = {
         {
             id: 'js-basics',
             title: 'JavaScript',
-            x: 80, y: 20,
+            x: 85, y: 25,
             status: 'unlocked',
             category: 'web',
             icon: Code,
@@ -127,7 +127,7 @@ const defaultSkillTree = {
         {
             id: 'frontend-react',
             title: 'React & UI',
-            x: 65, y: 44,
+            x: 70, y: 46,
             status: 'locked',
             category: 'web',
             icon: Globe,
@@ -138,7 +138,7 @@ const defaultSkillTree = {
         {
             id: 'backend-node',
             title: 'Node & APIs',
-            x: 92, y: 44,
+            x: 94, y: 46,
             status: 'locked',
             category: 'web',
             icon: Server,
@@ -149,7 +149,7 @@ const defaultSkillTree = {
         {
             id: 'state-management',
             title: 'State Architecture',
-            x: 60, y: 68,
+            x: 65, y: 70,
             status: 'locked',
             category: 'web',
             icon: Layers,
@@ -160,7 +160,7 @@ const defaultSkillTree = {
         {
             id: 'database-design',
             title: 'SQL & NoSQL',
-            x: 93, y: 68,
+            x: 94, y: 70,
             status: 'locked',
             category: 'web',
             icon: Database,
@@ -171,7 +171,7 @@ const defaultSkillTree = {
         {
             id: 'fullstack',
             title: 'Full Stack Master',
-            x: 77, y: 92,
+            x: 80, y: 93,
             status: 'locked',
             category: 'web',
             icon: Zap,
@@ -192,6 +192,67 @@ const SkillTreePage = () => {
     const [zoom, setZoom] = useState(1);
     const [history, setHistory] = useState([]);
     const [showHistory, setShowHistory] = useState(false);
+
+    // Adjust node spacing based on total number of nodes
+    const adjustNodeSpacing = (tree) => {
+        if (!tree || !tree.nodes || tree.nodes.length === 0) return tree;
+        
+        const nodeCount = tree.nodes.length;
+        
+        // Group nodes by their approximate depth level (y-position)
+        const levels = {};
+        tree.nodes.forEach(node => {
+            const level = Math.floor(node.y / 20); // Group by ~20 unit increments for better vertical grouping
+            if (!levels[level]) levels[level] = [];
+            levels[level].push(node);
+        });
+        
+        // For each level, spread nodes horizontally
+        Object.keys(levels).forEach(level => {
+            const nodesInLevel = levels[level];
+            const count = nodesInLevel.length;
+            
+            if (count > 1) {
+                // Calculate spacing based on canvas width
+                const minX = 10;
+                const maxX = 90;
+                const spacing = (maxX - minX) / (count - 1);
+                
+                // Sort nodes by current x position to maintain relative order
+                nodesInLevel.sort((a, b) => a.x - b.x);
+                
+                // Redistribute with even spacing
+                nodesInLevel.forEach((node, idx) => {
+                    node.x = minX + (spacing * idx);
+                });
+            }
+        });
+        
+        // Ensure minimum vertical spacing - increased values for better separation
+        const sortedByY = [...tree.nodes].sort((a, b) => a.y - b.y);
+        const minVerticalSpacing = nodeCount > 15 ? 20 : nodeCount > 10 ? 25 : 30;
+        
+        for (let i = 1; i < sortedByY.length; i++) {
+            const prevNode = sortedByY[i - 1];
+            const currNode = sortedByY[i];
+            
+            // If nodes are too close vertically
+            if (currNode.y - prevNode.y < minVerticalSpacing) {
+                currNode.y = prevNode.y + minVerticalSpacing;
+            }
+        }
+        
+        // Normalize y positions to fit within 0-100 range with more breathing room
+        const maxY = Math.max(...tree.nodes.map(n => n.y));
+        if (maxY > 98) {
+            const scaleFactor = 98 / maxY;
+            tree.nodes.forEach(node => {
+                node.y = node.y * scaleFactor;
+            });
+        }
+        
+        return tree;
+    };
 
     // Fetch history on mount
     useEffect(() => {
@@ -222,7 +283,9 @@ const SkillTreePage = () => {
                 interests: interests.split(',').map(i => i.trim()).filter(Boolean)
             });
             if (response.data.success) {
-                setSkillTree(response.data.skillTree);
+                // Apply spacing adjustments to the generated tree
+                const adjustedTree = adjustNodeSpacing(response.data.skillTree);
+                setSkillTree(adjustedTree);
                 // Refresh history
                 const historyResponse = await api.get('/skill-tree/history');
                 if (historyResponse.data.success) {
@@ -462,7 +525,9 @@ const SkillTreePage = () => {
                                                 whileHover={{ scale: 1.02 }}
                                                 className="p-4 bg-slate-800/50 rounded-xl border border-indigo-500/20 cursor-pointer hover:border-indigo-500/50 transition-all"
                                                 onClick={() => {
-                                                    setSkillTree(record.tree);
+                                                    // Apply spacing adjustments when loading from history
+                                                    const adjustedTree = adjustNodeSpacing(record.tree);
+                                                    setSkillTree(adjustedTree);
                                                     setInterests(record.interests.join(', '));
                                                     setShowHistory(false);
                                                 }}

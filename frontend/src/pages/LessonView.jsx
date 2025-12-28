@@ -16,6 +16,7 @@ const LessonView = () => {
   const [lesson, setLesson] = useState(null);
   const [quiz, setQuiz] = useState(null); // Quiz state
   const [isLoading, setIsLoading] = useState(true);
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [currentProgress, setCurrentProgress] = useState(null);
   const [initialTimeSpent, setInitialTimeSpent] = useState(0);
@@ -53,13 +54,19 @@ const LessonView = () => {
     return () => clearInterval(interval);
   }, [lesson, sessionStartTime, currentSessionTime, initialTimeSpent]);
 
-  // Fetch lesson and quiz
+  // Fetch lesson first
   useEffect(() => {
     if (id) {
       fetchLesson();
-      fetchQuiz();
     }
   }, [id]);
+
+  // Fetch quiz after lesson is loaded (non-blocking)
+  useEffect(() => {
+    if (lesson && id) {
+      fetchQuiz();
+    }
+  }, [lesson, id]);
 
   const fetchLesson = async () => {
     try {
@@ -94,6 +101,7 @@ const LessonView = () => {
   };
 
   const fetchQuiz = async () => {
+    setIsQuizLoading(true);
     try {
       const response = await api.get(`/quiz/lesson/${id}`);
       if (response.data.success) {
@@ -101,6 +109,9 @@ const LessonView = () => {
       }
     } catch (error) {
       console.error('Failed to fetch quiz:', error);
+      toast.error('Failed to load quiz');
+    } finally {
+      setIsQuizLoading(false);
     }
   };
 
@@ -165,6 +176,25 @@ const LessonView = () => {
     } catch (error) {
       console.error("Quiz submission failed", error);
       throw error;
+    }
+  };
+
+  const handleRegenerateQuiz = async () => {
+    setIsQuizLoading(true);
+    try {
+      toast.loading('Generating new quiz questions...');
+      const response = await api.post(`/quiz/lesson/${id}/regenerate`);
+      if (response.data.success) {
+        setQuiz(response.data.data);
+        toast.dismiss();
+        toast.success('New quiz generated!');
+      }
+    } catch (error) {
+      toast.dismiss();
+      console.error("Quiz regeneration failed", error);
+      toast.error('Failed to generate new quiz');
+    } finally {
+      setIsQuizLoading(false);
     }
   };
 
@@ -340,7 +370,7 @@ const LessonView = () => {
                     return null;
                   };
 
-                  const embedUrl = getEmbedUrl(lesson.contentURL);
+                  const embedUrl = lesson.embedURL || getEmbedUrl(lesson.contentURL);
 
                   if (embedUrl) {
                     return (
@@ -426,8 +456,26 @@ const LessonView = () => {
           </div>
         </motion.div>
 
-        {/* Lesson Quiz Section - Only show if quiz exists */}
-        {quiz && (
+        {/* Lesson Quiz Section */}
+        {isQuizLoading ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className='p-8 rounded-2xl text-center'
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9))',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
+            }}
+          >
+            <div className='flex flex-col items-center gap-4'>
+              <div className='w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin'></div>
+              <div className='text-xl text-gray-300'>Generating quiz questions...</div>
+              <div className='text-sm text-gray-500'>Using AI to create personalized questions for this lesson</div>
+            </div>
+          </motion.div>
+        ) : quiz ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -436,9 +484,10 @@ const LessonView = () => {
             <LessonQuiz
               quiz={quiz}
               onComplete={handleQuizComplete}
+              onRegenerate={handleRegenerateQuiz}
             />
           </motion.div>
-        )}
+        ) : null}
       </div>
     </div>
   );
