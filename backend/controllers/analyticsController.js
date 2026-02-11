@@ -281,46 +281,140 @@ export const getRecommendations = async (req, res) => {
 function generateInsights(userStats, progressData, skillRadar) {
     const insights = [];
 
-    // Streak insight
-    if (userStats?.currentStreak >= 7) {
+    // Streak insights (multiple tiers)
+    if (userStats?.currentStreak >= 30) {
         insights.push({
             type: 'positive',
-            message: `Amazing! You've maintained a ${userStats.currentStreak}-day streak! 🔥`
+            message: `🏆 Legendary! ${userStats.currentStreak}-day streak! You're unstoppable!`
+        });
+    } else if (userStats?.currentStreak >= 14) {
+        insights.push({
+            type: 'positive',
+            message: `🔥 On fire! ${userStats.currentStreak}-day streak! Keep the momentum going!`
+        });
+    } else if (userStats?.currentStreak >= 7) {
+        insights.push({
+            type: 'positive',
+            message: `✨ Great consistency! ${userStats.currentStreak}-day streak maintained!`
+        });
+    } else if (userStats?.currentStreak >= 3) {
+        insights.push({
+            type: 'positive',
+            message: `🌱 Building a habit! ${userStats.currentStreak} days in a row!`
         });
     }
 
-    // Level insight
-    if (userStats?.level >= 5) {
+    // Level & XP insights
+    if (userStats?.level >= 10) {
         insights.push({
             type: 'positive',
-            message: `You've reached Level ${userStats.level}! You're making great progress! 🌟`
+            message: `🌟 Expert learner! You've reached Level ${userStats.level}!`
+        });
+    } else if (userStats?.level >= 5) {
+        insights.push({
+            type: 'positive',
+            message: `📈 Level ${userStats.level} achieved! You're making excellent progress!`
         });
     }
 
-    // Topic strength insight
+    // Badge insights
+    if (userStats?.badges?.length >= 10) {
+        insights.push({
+            type: 'positive',
+            message: `🏅 Badge collector! You've earned ${userStats.badges.length} badges!`
+        });
+    } else if (userStats?.badges?.length >= 5) {
+        insights.push({
+            type: 'positive',
+            message: `🎖️ ${userStats.badges.length} badges unlocked! Keep collecting!`
+        });
+    }
+
+    // Topic mastery insights
     const strongTopics = skillRadar.filter(s => s.proficiency >= 80);
-    if (strongTopics.length > 0) {
+    const moderateTopics = skillRadar.filter(s => s.proficiency >= 60 && s.proficiency < 80);
+    
+    if (strongTopics.length >= 3) {
         insights.push({
             type: 'positive',
-            message: `You're strong in ${strongTopics.map(t => t.topic).join(', ')}! 💪`
+            message: `💪 Master of ${strongTopics.length} topics: ${strongTopics.slice(0, 3).map(t => t.topic).join(', ')}!`
+        });
+    } else if (strongTopics.length > 0) {
+        insights.push({
+            type: 'positive',
+            message: `💎 Strong command in ${strongTopics.map(t => t.topic).join(', ')}!`
         });
     }
 
-    // Improvement areas
+    // Improvement opportunities
     const weakTopics = skillRadar.filter(s => s.proficiency < 50 && s.totalLessons > 0);
     if (weakTopics.length > 0) {
         insights.push({
             type: 'suggestion',
-            message: `Consider focusing more on ${weakTopics[0].topic} to improve. 📚`
+            message: `📚 Focus opportunity: ${weakTopics[0].topic} (${Math.round(weakTopics[0].proficiency)}% proficiency)`
         });
     }
 
-    // Time insight
+    // Growth potential
+    if (moderateTopics.length > 0) {
+        insights.push({
+            type: 'suggestion',
+            message: `🎯 You're doing well in ${moderateTopics[0].topic} - a few more lessons and you'll master it!`
+        });
+    }
+
+    // Time investment insights
     const totalHours = progressData.reduce((sum, p) => sum + (p.timeSpentMin || 0), 0) / 60;
-    if (totalHours >= 10) {
+    if (totalHours >= 50) {
         insights.push({
             type: 'positive',
-            message: `You've invested ${Math.round(totalHours)} hours in learning! Keep it up! ⏰`
+            message: `⏰ Dedicated learner! ${Math.round(totalHours)} hours invested in your growth!`
+        });
+    } else if (totalHours >= 20) {
+        insights.push({
+            type: 'positive',
+            message: `⏳ ${Math.round(totalHours)} hours of learning - great commitment!`
+        });
+    } else if (totalHours >= 10) {
+        insights.push({
+            type: 'positive',
+            message: `🕒 ${Math.round(totalHours)} hours logged - you're building momentum!`
+        });
+    }
+
+    // Learning pace insights
+    const completedLessons = userStats?.totalLessonsCompleted || 0;
+    if (completedLessons >= 50) {
+        insights.push({
+            type: 'positive',
+            message: `📚 Prolific learner! ${completedLessons} lessons completed!`
+        });
+    } else if (completedLessons >= 20) {
+        insights.push({
+            type: 'positive',
+            message: `📖 ${completedLessons} lessons completed - you're on a roll!`
+        });
+    }
+
+    // Quiz performance insights
+    const quizzesTaken = userStats?.totalQuizzesTaken || 0;
+    if (quizzesTaken >= 30) {
+        insights.push({
+            type: 'positive',
+            message: `🎓 Quiz master! ${quizzesTaken} quizzes completed - testing makes perfect!`
+        });
+    } else if (quizzesTaken >= 10) {
+        insights.push({
+            type: 'positive',
+            message: `✅ ${quizzesTaken} quizzes taken - great way to reinforce learning!`
+        });
+    }
+
+    // Motivational insights when few activities
+    if (insights.length === 0) {
+        insights.push({
+            type: 'suggestion',
+            message: `🚀 Start your learning journey today! Complete lessons to unlock insights.`
         });
     }
 

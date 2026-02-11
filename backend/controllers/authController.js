@@ -2,18 +2,19 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-// Check if this is the first user (for frontend to show appropriate UI)
+// In-memory OTP storage for development
+// Structure: { email: { otp: '123456', expiresAt: timestamp } }
+const otpStore = {};
+
 export const checkFirstUser = async (req, res) => {
   try {
     const userCount = await User.countDocuments();
     res.json({
       success: true,
-      data: { isFirstUser: userCount === 0 },
-      message: userCount === 0 ? "No users found - first registration will be super admin" : "Users exist"
+      data: { isFirstUser: userCount === 0 }
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
-    console.log(error.message);
   }
 };
 
@@ -36,20 +37,12 @@ export const register = async (req, res) => {
     
     const passwordHash = await bcrypt.hash(password, 10);
     
-    // Check if this is the first user - ALWAYS make them super admin
+    // Check if this is the first user - make them super admin
+    // After first user, all signups create student accounts only
+    // Admins can only be created by super admin through admin panel
     const userCount = await User.countDocuments();
-    const isFirstUser = userCount === 0;
-    
-    // Only first user can be admin through registration
-    // Other admins must be created by super admin through admin panel
-    const userRole = isFirstUser ? 'admin' : 'student';
-    const isSuperAdmin = isFirstUser;
-    
-    if (isFirstUser) {
-      console.log('🎯 First user registration - creating super admin:', email);
-    } else if (role === 'admin') {
-      console.log('⚠️ Blocked attempt to create admin account through registration:', email);
-    }
+    const userRole = userCount === 0 ? 'admin' : 'student';
+    const isSuperAdmin = userCount === 0;
     
     const user = new User({
       name,
@@ -67,7 +60,7 @@ export const register = async (req, res) => {
       userId: user._id, 
       role: user.role, 
       isSuperAdmin: user.isSuperAdmin 
-    }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
     res.json({
       success: true,
@@ -88,7 +81,7 @@ export const register = async (req, res) => {
     
   } catch (error) {
     res.json({success: false, message: error.message});
-    console.log(error.message);
+
   }
 };
 
@@ -118,9 +111,7 @@ export const login = async (req, res) => {
       userId: user._id, 
       role: user.role, 
       isSuperAdmin: user.isSuperAdmin 
-    }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    
-    console.log('✅ Login successful:', user.email, '| Role:', user.role);
+    }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
     res.json({
       success: true,
@@ -142,7 +133,7 @@ export const login = async (req, res) => {
     
   } catch (error) {
     res.json({success: false, message: error.message});
-    console.log(error.message);
+
   }
 };
 
@@ -218,8 +209,6 @@ export const changePassword = async (req, res) => {
     const userId = req.user._id; // Changed from req.user.id to req.user._id
     const { currentPassword, newPassword } = req.body;
     
-    console.log('🔐 Changing password for user:', userId);
-    
     if (!currentPassword || !newPassword) {
       return res.json({ success: false, message: "Both current and new password are required" });
     }
@@ -250,137 +239,134 @@ export const changePassword = async (req, res) => {
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
-    console.log(error.message);
   }
 };
 
-// Forgot password - generates a 6-digit OTP
+// Forgot Password - Send OTP
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       return res.json({ success: false, message: "Email is required" });
     }
-    
+
+    // Check if user exists
     const user = await User.findOne({ email });
-    
     if (!user) {
-      // Don't reveal whether user exists for security
-      return res.json({ 
-        success: true, 
-        message: "If an account with that email exists, a verification code has been sent" 
-      });
+      return res.json({ success: false, message: "No account found with this email" });
     }
-    
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Store OTP and expiry (valid for 10 minutes)
-    user.resetPasswordOTP = otp;
-    user.resetPasswordOTPExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-    await user.save();
-    
-    // In a real application, you would send this OTP via email
-    // For development, we'll log it to console
-    console.log('🔑 Password reset OTP for', email, ':', otp);
-    console.log('⏰ OTP expires at:', user.resetPasswordOTPExpires);
-    
-    // TODO: Send OTP via email service (e.g., SendGrid, AWS SES, Nodemailer)
-    // await sendEmail(email, 'Password Reset OTP', `Your verification code is: ${otp}`);
-    
+
+    // Store OTP with 10-minute expiration
+    otpStore[email] = {
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+    };
+
+    // Log OTP to backend console (development mode)
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔐 PASSWORD RESET OTP');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`📧 Email: ${email}`);
+    console.log(`🔢 OTP: ${otp}`);
+    console.log(`⏰ Valid for: 10 minutes`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
     res.json({
       success: true,
-      message: "A verification code has been sent to your email. It will expire in 10 minutes."
+      message: "OTP sent successfully. Check the backend console for the OTP code.",
+      email
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
-    console.log(error.message);
   }
 };
 
-// Verify OTP code
+// Verify OTP
 export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    
+
     if (!email || !otp) {
       return res.json({ success: false, message: "Email and OTP are required" });
     }
-    
-    const user = await User.findOne({ email });
-    
-    if (!user) {
-      return res.json({ success: false, message: "Invalid credentials" });
+
+    // Check if OTP exists for this email
+    const storedOTP = otpStore[email];
+    if (!storedOTP) {
+      return res.json({ success: false, message: "No OTP found for this email. Please request a new one." });
     }
-    
-    // Check if OTP exists and matches
-    if (!user.resetPasswordOTP || user.resetPasswordOTP !== otp) {
-      return res.json({ success: false, message: "Invalid verification code" });
-    }
-    
+
     // Check if OTP has expired
-    if (user.resetPasswordOTPExpires < new Date()) {
-      return res.json({ success: false, message: "Verification code has expired. Please request a new one." });
+    if (Date.now() > storedOTP.expiresAt) {
+      delete otpStore[email];
+      return res.json({ success: false, message: "OTP has expired. Please request a new one." });
     }
-    
+
+    // Verify OTP
+    if (storedOTP.otp !== otp.toString()) {
+      return res.json({ success: false, message: "Invalid OTP. Please try again." });
+    }
+
     res.json({
       success: true,
-      message: "Verification code confirmed. You can now reset your password."
+      message: "OTP verified successfully. You can now reset your password.",
+      email
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
-    console.log(error.message);
   }
 };
 
-// Reset password using the OTP
+// Reset Password
 export const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-    
+
     if (!email || !otp || !newPassword) {
       return res.json({ success: false, message: "Email, OTP, and new password are required" });
     }
-    
+
     if (newPassword.length < 6) {
       return res.json({ success: false, message: "Password must be at least 6 characters" });
     }
-    
+
+    // Check if OTP exists and is valid
+    const storedOTP = otpStore[email];
+    if (!storedOTP) {
+      return res.json({ success: false, message: "No OTP found. Please request a new OTP." });
+    }
+
+    if (Date.now() > storedOTP.expiresAt) {
+      delete otpStore[email];
+      return res.json({ success: false, message: "OTP has expired. Please request a new one." });
+    }
+
+    if (storedOTP.otp !== otp.toString()) {
+      return res.json({ success: false, message: "Invalid OTP." });
+    }
+
+    // Find user and update password
     const user = await User.findOne({ email });
-    
     if (!user) {
-      return res.json({ success: false, message: "Invalid credentials" });
+      return res.json({ success: false, message: "User not found" });
     }
-    
-    // Verify OTP
-    if (!user.resetPasswordOTP || user.resetPasswordOTP !== otp) {
-      return res.json({ success: false, message: "Invalid verification code" });
-    }
-    
-    // Check if OTP has expired
-    if (user.resetPasswordOTPExpires < new Date()) {
-      return res.json({ success: false, message: "Verification code has expired. Please request a new one." });
-    }
-    
+
     // Hash and save new password
     user.passwordHash = await bcrypt.hash(newPassword, 10);
-    
-    // Clear OTP fields
-    user.resetPasswordOTP = undefined;
-    user.resetPasswordOTPExpires = undefined;
-    
     await user.save();
-    
-    console.log('✅ Password reset successful for:', email);
-    
+
+    // Clear OTP after successful password reset
+    delete otpStore[email];
+
     res.json({
       success: true,
-      message: "Password reset successfully. You can now log in with your new password."
+      message: "Password reset successfully. You can now login with your new password."
     });
   } catch (error) {
     res.json({ success: false, message: error.message });
-    console.log(error.message);
   }
 };
-

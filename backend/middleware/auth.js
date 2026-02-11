@@ -6,7 +6,6 @@ export const authMiddleware = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
     
     if (!token) {
-      console.log('❌ No token provided');
       return res.json({success: false, message: "No token provided"});
     }
     
@@ -14,14 +13,12 @@ export const authMiddleware = async (req, res, next) => {
     const user = await User.findById(decoded.userId).select('-passwordHash');
     
     if (!user) {
-      console.log('❌ User not found for token');
       return res.json({success: false, message: "User not found"});
     }
     
     req.user = user;
     next();
   } catch (error) {
-    console.log('❌ Auth error:', error.message);
     res.json({success: false, message: "Invalid or expired token"});
   }
 };

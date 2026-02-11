@@ -106,8 +106,7 @@ export const sendMessage = async (req, res) => {
             const result = await chat.sendMessage(promptWithContext);
             aiResponse = result.response.text();
         } catch (aiError) {
-            console.error("AI Error:", aiError);
-            console.error("Error details:", aiError.message);
+            console.error("Chatbot AI Error:", aiError.message);
             
             // Check if it's a network error
             if (aiError.message?.includes('fetch failed') || aiError.code === 'ENOTFOUND' || aiError.code === 'ECONNREFUSED') {

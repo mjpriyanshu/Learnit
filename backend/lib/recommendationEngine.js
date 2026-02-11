@@ -182,12 +182,6 @@ export const scoreLesson = (user, lesson, mastery, maxVisits) => {
  */
 export const generateRecommendations = async (user, limit = 10) => {
   try {
-    console.log('🎯 Generating recommendations for user:', user.email);
-    console.log('📊 User profile:', {
-      interests: user.interests,
-      learning_goals: user.learning_goals
-    });
-    
     // Get different types of lessons - Use 'public' as fallback since most lessons don't have visibility set
     const curatedQuery = { 
       $or: [
@@ -196,16 +190,7 @@ export const generateRecommendations = async (user, limit = 10) => {
         { createdBy: 'system', visibility: 'public' }
       ]
     };
-    console.log('🔍 Curated lessons query:', JSON.stringify(curatedQuery));
     const curatedLessons = await Lesson.find(curatedQuery);
-    console.log('📦 Raw curated lessons count:', curatedLessons.length);
-    if (curatedLessons.length > 0) {
-      console.log('📄 Sample lesson:', {
-        title: curatedLessons[0].title,
-        createdBy: curatedLessons[0].createdBy,
-        visibility: curatedLessons[0].visibility
-      });
-    }
     
     const personalizedLessons = await Lesson.find({
       geminiGenerated: true,
