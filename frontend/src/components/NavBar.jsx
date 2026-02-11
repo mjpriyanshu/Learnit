@@ -131,14 +131,14 @@ const NavBar = () => {
                   )}
                 </Link>
                 <Link
-                  to='/admin/lessons'
-                  className={`font-medium transition-all relative ${isActive('/admin/lessons')
+                  to='/admin/messages'
+                  className={`font-medium transition-all relative ${isActive('/admin/messages')
                     ? 'text-cyan-400'
                     : 'text-gray-300 hover:text-purple-400'
                     }`}
                 >
-                  Lessons
-                  {isActive('/admin/lessons') && (
+                  Messages
+                  {isActive('/admin/messages') && (
                     <motion.div
                       layoutId='activeLink'
                       className='absolute -bottom-1 left-0 right-0 h-0.5'

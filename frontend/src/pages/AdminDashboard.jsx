@@ -31,13 +31,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [notificationForm, setNotificationForm] = useState({
-    title: '',
-    message: '',
-    icon: '📢',
-    sendToAll: true
-  });
+
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -99,41 +93,12 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleCreateLesson = () => {
-    navigate('/admin/add-content');
+  const handleManageMessages = () => {
+    navigate('/admin/messages');
   };
 
   const handleManageRoles = () => {
     navigate('/admin/users');
-  };
-
-  const handleSendNotification = async () => {
-    if (!notificationForm.title || !notificationForm.message) {
-      toast.error('Please fill in title and message');
-      return;
-    }
-
-    try {
-      const loadingToast = toast.loading('Sending notification...');
-      const res = await api.post('/notifications/create', {
-        userIds: 'all',
-        title: notificationForm.title,
-        message: notificationForm.message,
-        icon: notificationForm.icon,
-        type: 'system'
-      });
-      toast.dismiss(loadingToast);
-      
-      if (res.data.success) {
-        toast.success(`Notification sent to ${res.data.data.count} users! 🎉`);
-        setShowNotificationModal(false);
-        setNotificationForm({ title: '', message: '', icon: '📢', sendToAll: true });
-      } else {
-        toast.error(res.data.message || 'Failed to send notification');
-      }
-    } catch (error) {
-      toast.error('Error sending notification');
-    }
   };
 
   // Mock Data is NOT used anymore for charts, using real stats.activityTrend
@@ -407,13 +372,13 @@ const AdminDashboard = () => {
             <h3 className='text-lg font-bold text-white mb-6'>Deployment Controls</h3>
             <div className='space-y-3'>
               <button 
-                onClick={handleCreateLesson}
+                onClick={handleManageMessages}
                 className='w-full p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/50 transition-all flex items-center gap-4 group text-left'
               >
-                <div className='p-2 bg-indigo-500/20 text-indigo-400 rounded-lg group-hover:scale-110 transition-transform'><BookOpen size={20} /></div>
+                <div className='p-2 bg-indigo-500/20 text-indigo-400 rounded-lg group-hover:scale-110 transition-transform'><Send size={20} /></div>
                 <div>
-                  <div className='font-bold text-white'>Create Lesson</div>
-                  <div className='text-xs text-gray-400'>Add new content to library</div>
+                  <div className='font-bold text-white'>Manage Messages</div>
+                  <div className='text-xs text-gray-400'>Send notifications & view all messages</div>
                 </div>
               </button>
               <button 
@@ -436,91 +401,10 @@ const AdminDashboard = () => {
                   <div className='text-xs text-gray-400'>Clear server temporary data</div>
                 </div>
               </button>
-              <button 
-                onClick={() => setShowNotificationModal(true)}
-                className='w-full p-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-emerald-500/50 transition-all flex items-center gap-4 group text-left'
-              >
-                <div className='p-2 bg-emerald-500/20 text-emerald-400 rounded-lg group-hover:scale-110 transition-transform'><Send size={20} /></div>
-                <div>
-                  <div className='font-bold text-white'>Send Notification</div>
-                  <div className='text-xs text-gray-400'>Broadcast message to all users</div>
-                </div>
-              </button>
             </div>
           </motion.div>
         </div>
       </div>
-
-      {/* Notification Modal */}
-      {showNotificationModal && (
-        <div className='fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4'>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className='bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full'
-          >
-            <h3 className='text-2xl font-bold text-white mb-4 flex items-center gap-2'>
-              <Send className='text-emerald-400' size={24} />
-              Send Notification
-            </h3>
-            <div className='space-y-4'>
-              <div>
-                <label className='block text-sm font-medium text-gray-400 mb-2'>Icon</label>
-                <div className='flex gap-2'>
-                  {['\ud83d\udce2', '\ud83c\udf89', '\u2728', '\ud83d\udd14', '\ud83d\udca1', '\u26a0\ufe0f'].map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => setNotificationForm({ ...notificationForm, icon: emoji })}
-                      className={`text-2xl p-2 rounded-lg border transition ${
-                        notificationForm.icon === emoji
-                          ? 'border-emerald-500 bg-emerald-500/20'
-                          : 'border-white/10 hover:border-white/30'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className='block text-sm font-medium text-gray-400 mb-2'>Title</label>
-                <input
-                  type='text'
-                  value={notificationForm.title}
-                  onChange={(e) => setNotificationForm({ ...notificationForm, title: e.target.value })}
-                  placeholder='e.g., New Feature Released!'
-                  className='w-full px-4 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:border-emerald-500 outline-none'
-                />
-              </div>
-              <div>
-                <label className='block text-sm font-medium text-gray-400 mb-2'>Message</label>
-                <textarea
-                  value={notificationForm.message}
-                  onChange={(e) => setNotificationForm({ ...notificationForm, message: e.target.value })}
-                  placeholder='Write your message here...'
-                  rows={4}
-                  className='w-full px-4 py-2 bg-slate-800 border border-white/10 rounded-lg text-white focus:border-emerald-500 outline-none resize-none'
-                />
-              </div>
-              <div className='flex gap-3 mt-6'>
-                <button
-                  onClick={() => setShowNotificationModal(false)}
-                  className='flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition font-medium'
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSendNotification}
-                  className='flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition font-medium flex items-center justify-center gap-2'
-                >
-                  <Send size={18} />
-                  Send to All Users
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

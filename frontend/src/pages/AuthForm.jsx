@@ -12,8 +12,7 @@ const AuthForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
-    role: 'student'
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +40,7 @@ const AuthForm = () => {
       if (isLogin) {
         result = await login(formData.email, formData.password);
       } else {
-        result = await register(formData.name, formData.email, formData.password, formData.role);
+        result = await register(formData.name, formData.email, formData.password);
       }
 
       if (result.success) {
@@ -71,7 +70,7 @@ const AuthForm = () => {
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
-    setFormData({ name: '', email: '', password: '', role: 'student' });
+    setFormData({ name: '', email: '', password: '' });
   };
 
   const handleForgotPassword = async () => {
@@ -448,26 +447,35 @@ const AuthForm = () => {
         <form onSubmit={handleSubmit}>
           {/* Name Input (Signup only) */}
           {!isLogin && (
-            <div style={inputContainerStyle}>
-              <span style={labelStyle}>Full Name</span>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                onFocus={() => setFocusedInput('name')}
-                onBlur={() => setFocusedInput(null)}
-                placeholder="Enter your full name"
-                style={inputStyle(focusedInput === 'name')}
-                required={!isLogin}
-              />
-              <span style={iconStyle}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </span>
-            </div>
+            <>
+              <div>
+                <label className='block text-sm font-medium text-gray-300 mb-2'>
+                  Full Name
+                </label>
+                <input
+                  type='text'
+                  name='name'
+                  value={formData.name}
+                  onChange={handleChange}
+                  required={!isLogin}
+                  className='w-full px-4 py-3 rounded-lg outline-none transition'
+                  style={{
+                    background: 'rgba(30, 41, 59, 0.5)',
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                    color: '#e0e7ff'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                  placeholder='John Doe'
+                />
+              </div>
+            </>
           )}
 
           {/* Email Input */}

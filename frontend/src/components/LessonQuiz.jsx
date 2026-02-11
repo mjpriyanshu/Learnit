@@ -41,7 +41,6 @@ const LessonQuiz = ({ quiz, onComplete, onRegenerate }) => {
         try {
             // Call the onComplete callback with answers
             const result = await onComplete(quiz._id, selectedAnswers);
-            console.log('Quiz result:', result);
             
             // Ensure totalQuestions is set (fallback to quiz length)
             if (!result.totalQuestions) {
