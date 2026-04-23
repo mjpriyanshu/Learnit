@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Install dependencies first for better layer caching
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --no-audit --no-fund \
+	&& npm cache clean --force
 
 # Copy app source
 COPY . .
