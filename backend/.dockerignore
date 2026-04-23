@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+.git
+.gitignore
+.env
+.env.*
+*.md
+
+# Vite / frontend
+../frontend/node_modules
+../frontend/dist
+
+# OS
+.DS_Store
+Thumbs.db
