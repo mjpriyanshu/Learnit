@@ -12,9 +12,9 @@ services:
     container_name: learnit-mongo-express
     environment:
       - ME_CONFIG_MONGODB_URL=mongodb://mongo:27017
-      # Optional basic auth for the UI (recommended even locally):
-      # - ME_CONFIG_BASICAUTH_USERNAME=admin
-      # - ME_CONFIG_BASICAUTH_PASSWORD=change_me
+      # Basic auth for the UI (recommended even locally)
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin
     ports:
       - "8081:8081"
     depends_on:
