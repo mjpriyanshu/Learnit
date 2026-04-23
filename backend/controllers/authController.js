@@ -9,12 +9,12 @@ const otpStore = {};
 export const checkFirstUser = async (req, res) => {
   try {
     const userCount = await User.countDocuments();
-    res.json({
+    res.status(200).json({
       success: true,
       data: { isFirstUser: userCount === 0 }
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -23,16 +23,16 @@ export const register = async (req, res) => {
     const { name, email, password, interests, learning_goals, role } = req.body;
     
     if (!name || !email || !password) {
-      return res.json({success: false, message: "Missing required fields"});
+      return res.status(400).json({success: false, message: "Missing required fields"});
     }
     
     if (password.length < 6) {
-      return res.json({success: false, message: "Password must be at least 6 characters"});
+      return res.status(400).json({success: false, message: "Password must be at least 6 characters"});
     }
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.json({success: false, message: "Email already registered"});
+      return res.status(409).json({success: false, message: "Email already registered"});
     }
     
     const passwordHash = await bcrypt.hash(password, 10);
@@ -62,7 +62,7 @@ export const register = async (req, res) => {
       isSuperAdmin: user.isSuperAdmin 
     }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
-    res.json({
+    res.status(201).json({
       success: true,
       data: {
         token,
@@ -80,7 +80,7 @@ export const register = async (req, res) => {
     });
     
   } catch (error) {
-    res.json({success: false, message: error.message});
+    res.status(500).json({success: false, message: error.message});
 
   }
 };
@@ -90,21 +90,21 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     
     if (!email || !password) {
-      return res.json({success: false, message: "Missing required fields"});
+      return res.status(400).json({success: false, message: "Missing required fields"});
     }
     
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({success: false, message: "Invalid credentials"});
+      return res.status(401).json({success: false, message: "Invalid credentials"});
     }
     
     if (!user.isActive) {
-      return res.json({success: false, message: "Account suspended. Contact administrator."});
+      return res.status(403).json({success: false, message: "Account suspended. Contact administrator."});
     }
     
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.json({success: false, message: "Invalid credentials"});
+      return res.status(401).json({success: false, message: "Invalid credentials"});
     }
     
     const token = jwt.sign({ 
@@ -113,7 +113,7 @@ export const login = async (req, res) => {
       isSuperAdmin: user.isSuperAdmin 
     }, process.env.JWT_SECRET, { expiresIn: '7d' });
     
-    res.json({
+    res.status(200).json({
       success: true,
       data: {
         token,
@@ -132,20 +132,20 @@ export const login = async (req, res) => {
     });
     
   } catch (error) {
-    res.json({success: false, message: error.message});
+    res.status(500).json({success: false, message: error.message});
 
   }
 };
 
 export const verifyToken = async (req, res) => {
   try {
-    res.json({
+    res.status(200).json({
       success: true,
       data: req.user,
       message: "Token verified"
     });
   } catch (error) {
-    res.json({success: false, message: error.message});
+    res.status(500).json({success: false, message: error.message});
     console.log(error.message);
   }
 };
@@ -156,16 +156,16 @@ export const getProfile = async (req, res) => {
     const user = await User.findById(req.user._id).select('-passwordHash');
     
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
     
-    res.json({
+    res.status(200).json({
       success: true,
       data: user,
       message: "Profile retrieved successfully"
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
     console.log(error.message);
   }
 };
@@ -179,7 +179,7 @@ export const updateProfile = async (req, res) => {
     const user = await User.findById(userId);
     
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
     
     // Update allowed fields
@@ -192,14 +192,14 @@ export const updateProfile = async (req, res) => {
     // Return updated user without password
     const updatedUser = await User.findById(userId).select('-passwordHash');
     
-    res.json({
+    res.status(200).json({
       success: true,
       data: updatedUser,
       message: "Profile updated successfully"
     });
   } catch (error) {
     console.error('❌ Profile update error:', error.message);
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -210,35 +210,35 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
-      return res.json({ success: false, message: "Both current and new password are required" });
+      return res.status(400).json({ success: false, message: "Both current and new password are required" });
     }
     
     if (newPassword.length < 6) {
-      return res.json({ success: false, message: "New password must be at least 6 characters" });
+      return res.status(400).json({ success: false, message: "New password must be at least 6 characters" });
     }
     
     const user = await User.findById(userId);
     
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
     
     // Verify current password
     const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
-      return res.json({ success: false, message: "Current password is incorrect" });
+      return res.status(400).json({ success: false, message: "Current password is incorrect" });
     }
     
     // Hash and save new password
     user.passwordHash = await bcrypt.hash(newPassword, 10);
     await user.save();
     
-    res.json({
+    res.status(200).json({
       success: true,
       message: "Password changed successfully"
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -248,13 +248,13 @@ export const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.json({ success: false, message: "Email is required" });
+      return res.status(400).json({ success: false, message: "Email is required" });
     }
 
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ success: false, message: "No account found with this email" });
+      return res.status(404).json({ success: false, message: "No account found with this email" });
     }
 
     // Generate 6-digit OTP
@@ -275,13 +275,13 @@ export const forgotPassword = async (req, res) => {
     console.log(`⏰ Valid for: 10 minutes`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: "OTP sent successfully. Check the backend console for the OTP code.",
       email
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -291,33 +291,33 @@ export const verifyOTP = async (req, res) => {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-      return res.json({ success: false, message: "Email and OTP are required" });
+      return res.status(400).json({ success: false, message: "Email and OTP are required" });
     }
 
     // Check if OTP exists for this email
     const storedOTP = otpStore[email];
     if (!storedOTP) {
-      return res.json({ success: false, message: "No OTP found for this email. Please request a new one." });
+      return res.status(404).json({ success: false, message: "No OTP found for this email. Please request a new one." });
     }
 
     // Check if OTP has expired
     if (Date.now() > storedOTP.expiresAt) {
       delete otpStore[email];
-      return res.json({ success: false, message: "OTP has expired. Please request a new one." });
+      return res.status(410).json({ success: false, message: "OTP has expired. Please request a new one." });
     }
 
     // Verify OTP
     if (storedOTP.otp !== otp.toString()) {
-      return res.json({ success: false, message: "Invalid OTP. Please try again." });
+      return res.status(400).json({ success: false, message: "Invalid OTP. Please try again." });
     }
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: "OTP verified successfully. You can now reset your password.",
       email
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -327,32 +327,32 @@ export const resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     if (!email || !otp || !newPassword) {
-      return res.json({ success: false, message: "Email, OTP, and new password are required" });
+      return res.status(400).json({ success: false, message: "Email, OTP, and new password are required" });
     }
 
     if (newPassword.length < 6) {
-      return res.json({ success: false, message: "Password must be at least 6 characters" });
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
     }
 
     // Check if OTP exists and is valid
     const storedOTP = otpStore[email];
     if (!storedOTP) {
-      return res.json({ success: false, message: "No OTP found. Please request a new OTP." });
+      return res.status(404).json({ success: false, message: "No OTP found. Please request a new OTP." });
     }
 
     if (Date.now() > storedOTP.expiresAt) {
       delete otpStore[email];
-      return res.json({ success: false, message: "OTP has expired. Please request a new one." });
+      return res.status(410).json({ success: false, message: "OTP has expired. Please request a new one." });
     }
 
     if (storedOTP.otp !== otp.toString()) {
-      return res.json({ success: false, message: "Invalid OTP." });
+      return res.status(400).json({ success: false, message: "Invalid OTP." });
     }
 
     // Find user and update password
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     // Hash and save new password
@@ -362,11 +362,11 @@ export const resetPassword = async (req, res) => {
     // Clear OTP after successful password reset
     delete otpStore[email];
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: "Password reset successfully. You can now login with your new password."
     });
   } catch (error) {
-    res.json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -89,7 +89,8 @@ const AuthForm = () => {
         toast.error(response.data.message || 'Failed to send verification code');
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      const message = error.response?.data?.message || 'An error occurred. Please try again.';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +117,8 @@ const AuthForm = () => {
         toast.error(response.data.message || 'Invalid verification code');
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      const message = error.response?.data?.message || 'An error occurred. Please try again.';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +154,8 @@ const AuthForm = () => {
         toast.error(response.data.message || 'Failed to reset password');
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      const message = error.response?.data?.message || 'An error occurred. Please try again.';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
