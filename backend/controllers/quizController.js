@@ -1,11 +1,30 @@
 import Quiz from "../models/Quiz.js";
 import UserStats from "../models/UserStats.js";
 import { BADGE_DEFINITIONS } from "./gamificationController.js";
+import { enqueueJob } from "../lib/jobRunner.js";
 
 // Get assessment quiz (AI-generated based on topic with 15 questions)
 export const getAssessmentQuiz = async (req, res) => {
     try {
         const topic = req.query.topic || 'General Programming'; // Default to General
+
+        const wantsAsync = req.query.async === '1' || req.headers['x-async'] === '1';
+        if (wantsAsync) {
+            const job = await enqueueJob({
+                type: "quiz.generateAssessment",
+                createdBy: req.user?._id,
+                payload: { topic }
+            });
+
+            return res.status(202).json({
+                success: true,
+                data: {
+                    jobId: job._id,
+                    statusUrl: `/api/jobs/${job._id}`
+                },
+                message: "Processing started"
+            });
+        }
 
         console.log(`Generating assessment quiz for topic: ${topic}`);
 
@@ -178,6 +197,8 @@ export const getLessonQuiz = async (req, res) => {
         const { lessonId } = req.params;
         let quiz = await Quiz.findOne({ lessonId, type: 'lesson' });
 
+        const wantsAsync = req.query.async === '1' || req.headers['x-async'] === '1';
+
         // Check if quiz exists but has less than 5 questions (old format)
         if (quiz && quiz.questions.length < 5) {
             console.log(`Found old quiz with ${quiz.questions.length} question(s). Deleting and regenerating...`);
@@ -195,6 +216,27 @@ export const getLessonQuiz = async (req, res) => {
             }
 
             console.log(`Generating quiz for lesson: ${lesson.title}`);
+
+            if (wantsAsync) {
+                const job = await enqueueJob({
+                    type: "quiz.generateLesson",
+                    createdBy: req.user?._id,
+                    payload: {
+                        lessonId,
+                        lessonTitle: lesson.title,
+                        lessonDescription: lesson.description || ""
+                    }
+                });
+
+                return res.status(202).json({
+                    success: true,
+                    data: {
+                        jobId: job._id,
+                        statusUrl: `/api/jobs/${job._id}`
+                    },
+                    message: "Processing started"
+                });
+            }
 
             // Generate quiz questions using Gemini API
             const { generateQuizQuestions } = await import('../lib/geminiService.js');

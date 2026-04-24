@@ -19,6 +19,8 @@ import certificateRoutes from './routes/certificateRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import noteRoutes from './routes/noteRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
+import { startJobRunner } from './lib/jobRunner.js';
 
 const app = express();
 
@@ -44,6 +46,7 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/jobs', jobRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -58,6 +61,7 @@ app.use((err, req, res, next) => {
 
 // Database connection
 await connectDB();
+await startJobRunner();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
