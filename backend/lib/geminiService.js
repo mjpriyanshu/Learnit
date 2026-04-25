@@ -53,35 +53,43 @@ Return ONLY JSON:
 
     const generatedLessons = JSON.parse(text);
 
-    const finalLessons = [];
+    const settledLessons = await Promise.allSettled(
+      generatedLessons.map(async (lesson) => {
+        const video = await fetchYouTubeVideo(
+          `${lesson.searchQuery} ${lesson.provider}`
+        );
 
-    for (const lesson of generatedLessons) {
-      const video = await fetchYouTubeVideo(
-        `${lesson.searchQuery} ${lesson.provider}`
-      );
+        if (!video) return null;
 
-      if (!video) continue;
+        return {
+          title: lesson.title,
+          description: lesson.description,
+          contentURL: video.watchUrl,
+          embedURL: video.embedUrl,
+          sourceType: "video",
+          tags: lesson.tags,
+          difficulty: lesson.difficulty,
+          estimatedTimeMin: lesson.estimatedTimeMin,
+          provider: lesson.provider,
+          prerequisites: lesson.prerequisites,
+          createdBy: "gemini",
+          geminiGenerated: true,
+          personalizedFor: [userId],
+          visibility: "private",
+          isExternal: true,
+          rating: 4.5,
+          visits: 0
+        };
+      })
+    );
 
-      finalLessons.push({
-        title: lesson.title,
-        description: lesson.description,
-        contentURL: video.watchUrl,
-        embedURL: video.embedUrl,
-        sourceType: "video",
-        tags: lesson.tags,
-        difficulty: lesson.difficulty,
-        estimatedTimeMin: lesson.estimatedTimeMin,
-        provider: lesson.provider,
-        prerequisites: lesson.prerequisites,
-        createdBy: "gemini",
-        geminiGenerated: true,
-        personalizedFor: [userId],
-        visibility: "private",
-        isExternal: true,
-        rating: 4.5,
-        visits: 0
-      });
-    }
+    const finalLessons = settledLessons
+      .filter((result) => result.status === "fulfilled" && result.value)
+      .map((result) => result.value);
+
+    settledLessons
+      .filter((result) => result.status === "rejected")
+      .forEach((result) => console.warn("YouTube lookup failed:", result.reason?.message || result.reason));
 
     return finalLessons.slice(0, count);
 
@@ -291,34 +299,42 @@ Return ONLY JSON:
 
     const generatedLessons = JSON.parse(text);
 
-    const finalLessons = [];
+    const settledLessons = await Promise.allSettled(
+      generatedLessons.map(async (lesson) => {
+        const video = await fetchYouTubeVideo(
+          `${lesson.searchQuery} ${lesson.provider}`
+        );
 
-    for (const lesson of generatedLessons) {
-      const video = await fetchYouTubeVideo(
-        `${lesson.searchQuery} ${lesson.provider}`
-      );
+        if (!video) return null;
 
-      if (!video) continue;
+        return {
+          title: lesson.title,
+          description: lesson.description,
+          contentURL: video.watchUrl,
+          embedURL: video.embedUrl,
+          sourceType: "video",
+          tags: lesson.tags,
+          difficulty: lesson.difficulty,
+          estimatedTimeMin: lesson.estimatedTimeMin,
+          provider: lesson.provider,
+          prerequisites: lesson.prerequisites,
+          createdBy: "gemini",
+          geminiGenerated: true,
+          visibility: "public",
+          isExternal: true,
+          rating: 4.5,
+          visits: 0
+        };
+      })
+    );
 
-      finalLessons.push({
-        title: lesson.title,
-        description: lesson.description,
-        contentURL: video.watchUrl,
-        embedURL: video.embedUrl,
-        sourceType: "video",
-        tags: lesson.tags,
-        difficulty: lesson.difficulty,
-        estimatedTimeMin: lesson.estimatedTimeMin,
-        provider: lesson.provider,
-        prerequisites: lesson.prerequisites,
-        createdBy: "gemini",
-        geminiGenerated: true,
-        visibility: "public",
-        isExternal: true,
-        rating: 4.5,
-        visits: 0
-      });
-    }
+    const finalLessons = settledLessons
+      .filter((result) => result.status === "fulfilled" && result.value)
+      .map((result) => result.value);
+
+    settledLessons
+      .filter((result) => result.status === "rejected")
+      .forEach((result) => console.warn("YouTube lookup failed:", result.reason?.message || result.reason));
 
     return finalLessons.slice(0, count);
 
