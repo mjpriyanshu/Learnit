@@ -306,7 +306,7 @@ export const addToProgressList = async (req, res) => {
         return res.json({success: false, message: "Lesson already in your progress list"});
       }
       progress.addedToList = true;
-      progress.collection = collection;
+      progress.listGroup = collection;
       progress.lastUpdated = Date.now();
       await progress.save();
     } else {
@@ -316,7 +316,7 @@ export const addToProgressList = async (req, res) => {
         lessonId,
         status: 'not-started',
         addedToList: true,
-        collection,
+        listGroup: collection,
         score: 0,
         timeSpentMin: 0
       });
@@ -386,20 +386,22 @@ export const getMyProgressList = async (req, res) => {
     const progressList = await Progress.find({ 
       userId, 
       addedToList: true 
-    }).populate('lessonId').sort({ collection: 1, createdAt: 1 });
+    }).populate('lessonId').sort({ listGroup: 1, createdAt: 1 }).lean();
     
     // Group by collection
     const collections = {};
     progressList.forEach(p => {
       if (!p.lessonId) return; // Skip if lesson was deleted
       
-      const collectionName = p.collection || 'Default';
+      const collectionName = p.listGroup || p.collection || 'Default';
       if (!collections[collectionName]) {
         collections[collectionName] = [];
       }
       
       collections[collectionName].push({
-        ...p.toObject(),
+        ...p,
+        collection: collectionName,
+        listGroup: collectionName,
         lesson: p.lessonId
       });
     });
@@ -445,7 +447,7 @@ export const moveToCollection = async (req, res) => {
       return res.json({success: false, message: "Lesson not in your progress list"});
     }
     
-    progress.collection = collection;
+    progress.listGroup = collection;
     progress.lastUpdated = Date.now();
     await progress.save();
     

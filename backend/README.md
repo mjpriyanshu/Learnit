@@ -20,7 +20,9 @@ npm install
 
 Create `.env` file:
 ```env
-MONGO_URI=your_mongodb_connection_string
+MONGODB_URI=your_mongodb_connection_string
+# Optional legacy alias (also supported):
+# MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret_key
 PORT=5000
 GEMINI_API_KEY=your_google_gemini_api_key
