@@ -1,4 +1,10 @@
 import axios from "axios";
+import { TTLCache } from "./ttlCache.js";
+
+// Cache YouTube search results by query to reduce external API calls.
+// 6 hours is a good default: avoids hot-loop repetition while allowing refresh.
+const youtubeSearchCache = new TTLCache({ maxSize: 2000 });
+const YOUTUBE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Fetch a REAL YouTube video using search query
@@ -7,6 +13,10 @@ import axios from "axios";
  */
 export const fetchYouTubeVideo = async (query) => {
   try {
+    const cacheKey = `yt:${String(query || "").trim().toLowerCase()}`;
+    const cached = youtubeSearchCache.get(cacheKey);
+    if (cached) return cached;
+
     const res = await axios.get(
       "https://www.googleapis.com/youtube/v3/search",
       {
@@ -27,23 +37,30 @@ export const fetchYouTubeVideo = async (query) => {
 
     const videoId = res.data.items[0].id.videoId;
 
-    return {
+    const result = {
       videoId,
       watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
       embedUrl: `https://www.youtube.com/embed/${videoId}`
     };
+
+    youtubeSearchCache.set(cacheKey, result, YOUTUBE_CACHE_TTL_MS);
+    return result;
   } catch (error) {
     // Check if quota exceeded
     if (error.response?.status === 403 && 
         error.response?.data?.error?.errors?.[0]?.reason === 'quotaExceeded') {
       console.warn("⚠️ YouTube API quota exceeded - using fallback");
       // Return a generic educational video as fallback
-      return {
+      const fallback = {
         videoId: "dQw4w9WgXcQ",
         watchUrl: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
         embedUrl: `https://www.youtube.com/embed/dQw4w9WgXcQ`,
         isQuotaFallback: true
       };
+
+      const cacheKey = `yt:${String(query || "").trim().toLowerCase()}`;
+      youtubeSearchCache.set(cacheKey, fallback, YOUTUBE_CACHE_TTL_MS);
+      return fallback;
     }
     console.error("❌ YouTube API error:", error.message);
     return null;
