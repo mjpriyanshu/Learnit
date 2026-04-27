@@ -7,7 +7,7 @@ const progressSchema = new mongoose.Schema({
   score: {type: Number, default: 0, min: 0, max: 100},
   timeSpentMin: {type: Number, default: 0},
   addedToList: {type: Boolean, default: false}, // User explicitly added to their progress list
-  collection: {type: String, default: 'Default'}, // Group/collection name for organizing
+  listGroup: {type: String, default: 'Default'}, // Group name for organizing progress list
   dailyTimeLog: [{  // Track time spent per day for accurate heatmap
     date: {type: String, required: true}, // YYYY-MM-DD format
     minutesSpent: {type: Number, default: 0}

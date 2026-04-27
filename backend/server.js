@@ -21,12 +21,14 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import noteRoutes from './routes/noteRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import { startJobRunner } from './lib/jobRunner.js';
+import { requestLogger } from './middleware/requestLogger.js';
 
 const app = express();
 
 // Middleware
 app.use(express.json({limit: '4mb'}));
 app.use(cors());
+app.use(requestLogger);
 
 // Routes
 app.use('/api/auth', authRoutes);
