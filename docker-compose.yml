@@ -1,0 +1,50 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: learnit-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: learnit-mongo-express
+    environment:
+      - ME_CONFIG_MONGODB_URL=mongodb://mongo:27017
+      # Basic auth for the UI (recommended even locally)
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mongo
+
+  backend:
+    build:
+      context: ./backend
+    container_name: learnit-backend
+    environment:
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/learnit
+      # NOTE: replace in real deployments (or use an .env file)
+      - JWT_SECRET=dev_jwt_secret_change_me
+      # Optional (only needed for AI/YT features):
+      # - GEMINI_API_KEY=
+      # - YOUTUBE_API_KEY=
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: learnit-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
