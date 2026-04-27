@@ -71,25 +71,37 @@ export const getPost = async (req, res) => {
         // Get comments for this post
         const comments = await Comment.find({ postId, parentComment: null, isDeleted: false })
             .populate('author', 'name email')
-            .sort({ isAcceptedAnswer: -1, upvotes: -1, createdAt: 1 });
+            .sort({ isAcceptedAnswer: -1, upvotes: -1, createdAt: 1 })
+            .lean();
 
-        // Get replies for each comment
-        const commentsWithReplies = await Promise.all(
-            comments.map(async (comment) => {
-                const replies = await Comment.find({
-                    parentComment: comment._id,
-                    isDeleted: false
-                })
-                    .populate('author', 'name email')
-                    .sort({ createdAt: 1 });
+        const commentIds = comments.map((c) => c._id);
 
-                return {
-                    ...comment.toObject(),
-                    replies,
-                    voteScore: comment.upvotes.length - comment.downvotes.length
-                };
-            })
-        );
+        const replies = commentIds.length
+            ? await Comment.find({
+                  parentComment: { $in: commentIds },
+                  isDeleted: false
+              })
+                  .populate('author', 'name email')
+                  .sort({ parentComment: 1, createdAt: 1 })
+                  .lean()
+            : [];
+
+        const repliesByParentId = new Map();
+        for (const reply of replies) {
+            const parentId = reply.parentComment?.toString();
+            if (!parentId) continue;
+            if (!repliesByParentId.has(parentId)) repliesByParentId.set(parentId, []);
+            repliesByParentId.get(parentId).push(reply);
+        }
+
+        const commentsWithReplies = comments.map((comment) => {
+            const id = comment._id.toString();
+            return {
+                ...comment,
+                replies: repliesByParentId.get(id) || [],
+                voteScore: comment.upvotes.length - comment.downvotes.length
+            };
+        });
 
         res.json({
             success: true,
