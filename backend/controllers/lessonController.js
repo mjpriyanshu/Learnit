@@ -2,6 +2,7 @@ import Lesson from "../models/Lesson.js";
 import Course from "../models/Course.js";
 import User from "../models/User.js";
 import { generatePersonalizedLessons, generateTopicLessons, refreshPersonalizedLessons } from "../lib/geminiService.js";
+import { enqueueJob } from "../lib/jobRunner.js";
 
 export const getLesson = async (req, res) => {
   try {
@@ -203,6 +204,24 @@ export const generatePersonalizedLessonsForUser = async (req, res) => {
     const userId = req.user._id; // Fixed: use _id instead of id
     const { count = 5 } = req.body;
 
+    const wantsAsync = req.query.async === '1' || req.headers['x-async'] === '1';
+    if (wantsAsync) {
+      const job = await enqueueJob({
+        type: "lesson.generatePersonalized",
+        createdBy: userId,
+        payload: { userId, count: Number(count) || 5 }
+      });
+
+      return res.status(202).json({
+        success: true,
+        data: {
+          jobId: job._id,
+          statusUrl: `/api/jobs/${job._id}`
+        },
+        message: "Processing started"
+      });
+    }
+
     // Generate lessons
     const lessons = await generatePersonalizedLessons(userId, count);
 
@@ -231,8 +250,27 @@ export const generateTopicLessonsEndpoint = async (req, res) => {
   try {
     const { topic, difficulty = 'beginner', count = 3 } = req.body;
 
+    const wantsAsync = req.query.async === '1' || req.headers['x-async'] === '1';
+
     if (!topic) {
       return res.json({ success: false, message: "Topic is required" });
+    }
+
+    if (wantsAsync) {
+      const job = await enqueueJob({
+        type: "lesson.generateTopic",
+        createdBy: req.user?._id,
+        payload: { topic, difficulty, count: Number(count) || 3 }
+      });
+
+      return res.status(202).json({
+        success: true,
+        data: {
+          jobId: job._id,
+          statusUrl: `/api/jobs/${job._id}`
+        },
+        message: "Processing started"
+      });
     }
 
     const lessons = await generateTopicLessons(topic, difficulty, count);
@@ -256,6 +294,24 @@ export const generateTopicLessonsEndpoint = async (req, res) => {
 export const refreshMyLessons = async (req, res) => {
   try {
     const userId = req.user._id;
+
+    const wantsAsync = req.query.async === '1' || req.headers['x-async'] === '1';
+    if (wantsAsync) {
+      const job = await enqueueJob({
+        type: "lesson.refreshPersonalized",
+        createdBy: userId,
+        payload: { userId }
+      });
+
+      return res.status(202).json({
+        success: true,
+        data: {
+          jobId: job._id,
+          statusUrl: `/api/jobs/${job._id}`
+        },
+        message: "Processing started"
+      });
+    }
 
     const lessons = await refreshPersonalizedLessons(userId);
 

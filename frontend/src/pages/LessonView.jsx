@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../lib/api';
+import { waitForJob } from '../lib/jobs';
 import toast from 'react-hot-toast';
 import { GamificationContext } from '../context/GamificationContext';
 import LessonQuiz from '../components/LessonQuiz';
@@ -103,7 +104,16 @@ const LessonView = () => {
   const fetchQuiz = async () => {
     setIsQuizLoading(true);
     try {
-      const response = await api.get(`/quiz/lesson/${id}`);
+      const response = await api.get(`/quiz/lesson/${id}?async=1`);
+
+      if (response.status === 202 && response.data?.success) {
+        const { jobId } = response.data.data;
+        const job = await waitForJob(jobId);
+        const quizData = job.result?.quiz;
+        if (quizData) setQuiz(quizData);
+        return;
+      }
+
       if (response.data.success) {
         setQuiz(response.data.data);
       }

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Plus, Search, BookOpen, Video, FileText, Filter, Zap, Clock, Star, ArrowRight } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import { waitForJob } from '../lib/jobs';
 import ImportLessonForm from '../components/ImportLessonForm';
 
 const LearningPathPage = () => {
@@ -123,12 +124,27 @@ const LearningPathPage = () => {
   const handleGeneratePersonalized = async () => {
     setIsGenerating(true);
     try {
-      const response = await api.post('/lessons/generate/personalized', { count: 5 });
-      if (response.data.success) {
-        toast.success(`Generated ${response.data.data.length} personalized lessons!`);
+      const loadingToastId = toast.loading('Generating personalized lessons...');
+      const response = await api.post('/lessons/generate/personalized?async=1', { count: 5 });
+
+      if (response.status === 202 && response.data?.success) {
+        const { jobId } = response.data.data;
+        const job = await waitForJob(jobId);
+        const generatedCount = job.result?.generatedCount ?? job.result?.lessons?.length ?? 0;
+        toast.dismiss(loadingToastId);
+        toast.success(`Generated ${generatedCount} personalized lessons!`);
+        fetchLessons();
+        return;
+      }
+
+      // Fallback: if server returns sync response
+      toast.dismiss(loadingToastId);
+      if (response.data?.success) {
+        toast.success('Personalized lessons generated!');
         fetchLessons();
       }
     } catch (error) {
+      toast.dismiss();
       toast.error('Failed to generate lessons.');
     } finally {
       setIsGenerating(false);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/api';
+import { waitForJob } from '../lib/jobs';
 import { GamificationContext } from '../context/GamificationContext';
 import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -81,7 +82,21 @@ const AssessmentPage = () => {
         setSelectedTopic(topic);
         setScreen('loading');
         try {
-            const response = await api.get(`/quiz/assessment?topic=${encodeURIComponent(topic.id)}`);
+            const response = await api.get(`/quiz/assessment?topic=${encodeURIComponent(topic.id)}&async=1`);
+
+            if (response.status === 202 && response.data?.success) {
+                const { jobId } = response.data.data;
+                const job = await waitForJob(jobId);
+                const quizData = job.result?.quiz;
+                if (!quizData) throw new Error('Quiz generation failed');
+
+                setQuiz(quizData);
+                setScreen('quiz');
+                setCurrentQuestion(0);
+                setAnswers({});
+                return;
+            }
+
             if (response.data.success) {
                 setQuiz(response.data.data);
                 setScreen('quiz');
