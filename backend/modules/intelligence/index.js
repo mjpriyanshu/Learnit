@@ -1,6 +1,6 @@
 import { Router } from "express";
-import recommendationRoutes from "../../routes/recommendationRoutes.js";
-import chatRoutes from "../../routes/chatRoutes.js";
+import recommendationRoutes from "./recommendation.routes.js";
+import chatRoutes from "./chat.routes.js";
 
 const intelligenceModule = Router();
 
