@@ -342,7 +342,7 @@ Instead of:
 | #2 | Fix N+1 database queries | ✅ Completed | Query patterns optimized with bulk fetching/lean usage |
 | #3 | Parallelize external API calls | ✅ Completed | `Promise.allSettled` based parallel fetch behavior added |
 | #4 | Basic caching | ✅ Completed | TTL cache utility and cache usage integrated |
-| #5 | Modular backend structure | 🚧 In progress | Modules router now mounted at `/api`; `auth` + `intelligence` have module-local routes; service-layer migration still pending for other domains |
+| #5 | Modular backend structure | 🚧 In progress | Modules router now mounted at `/api`; `auth` + `intelligence` + `learning` have module-local routes; service-layer migration still pending for other domains |
 | #6 | Docker setup | ✅ Completed | Backend/frontend Dockerfiles + compose integration added |
 | #7 | Schema and logic fixes | ✅ Completed | Aligned schema usage and logic mismatches |
 | #8 | Proper HTTP status codes | ✅ Completed | Standardized error statuses across controllers |
